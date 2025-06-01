@@ -9,7 +9,7 @@ setup(
     package_dir={"": "spice"},
     entry_points={
         "console_scripts": [
-            "spyc=cli.main:main"
+            "spyc=cli.__main__:main"
         ]
     },
     python_requires=">=3.8",

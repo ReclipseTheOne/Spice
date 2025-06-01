@@ -1,9 +1,9 @@
 """Parser for Spy language."""
 
 from typing import List
-from ..lexer import Token, TokenType
-from .ast_nodes import Module, InterfaceDeclaration, MethodSignature, Parameter
-from ..errors import SpiceError
+from lexer import Token, TokenType
+from parser.ast_nodes import Module, InterfaceDeclaration, MethodSignature, Parameter
+from errors import SpiceError
 
 
 class ParseError(SpiceError):
@@ -54,8 +54,6 @@ class Parser:
         # Function declaration
         if self.match(TokenType.DEF):
             return self.parse_function()
-
-        # TODO: Add more statement types
 
         # Expression statement
         return self.parse_expression_statement()

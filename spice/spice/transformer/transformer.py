@@ -1,7 +1,7 @@
 """Transform Spy AST to Python code."""
 
 # Import line will be very long but CTRL + Click doesn't work on * imports and I hate it
-from ..parser.ast_nodes import Module, InterfaceDeclaration, MethodSignature, ClassDeclaration, FunctionDeclaration
+from parser import Module, InterfaceDeclaration, MethodSignature, ClassDeclaration, FunctionDeclaration
 
 
 class Transformer:

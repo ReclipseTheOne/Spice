@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Spice CLI - Python superset compiler."""
+"""Spice CLI - SPy compiler."""
 
 import click
 import sys
 from pathlib import Path
 from typing import Optional
 
-from ..lexer import Lexer
-from ..parser import Parser
-from ..transformer import Transformer
-from ..errors import SpiceError
+from lexer import Lexer
+from parser.parser import Parser
+from transformer.transformer import Transformer
+from errors import SpiceError
 
 
 @click.command()

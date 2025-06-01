@@ -1,6 +1,6 @@
 """Lexer module for Spice language."""
 
-from .tokenizer import Lexer
-from .tokens import Token, TokenType
+from lexer.tokenizer import Lexer
+from lexer.tokens import Token, TokenType
 
 __all__ = ['Lexer', 'Token', 'TokenType']

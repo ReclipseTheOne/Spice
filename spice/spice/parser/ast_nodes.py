@@ -1,6 +1,6 @@
 """AST node definitions for Spy language."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional, Any
 from abc import ABC, abstractmethod
 
@@ -28,7 +28,7 @@ class InterfaceDeclaration(ASTNode):
     """Interface declaration node."""
     name: str
     methods: List['MethodSignature']
-    base_interfaces: List[str] = []
+    base_interfaces: List[str] = field(default_factory=list)
 
     def accept(self, visitor):
         return visitor.visit_interface(self)
@@ -61,7 +61,7 @@ class ClassDeclaration(ASTNode):
     """Class declaration with modifiers."""
     name: str
     body: List[ASTNode]
-    bases: List[str] = []
+    bases: List[str] = field(default_factory=list)
     is_abstract: bool = False
     is_final: bool = False
 
@@ -79,7 +79,7 @@ class FunctionDeclaration(ASTNode):
     is_static: bool = False
     is_abstract: bool = False
     is_final: bool = False
-    decorators: List[str] = []
+    decorators: List[str] = field(default_factory=list)
 
     def accept(self, visitor):
         return visitor.visit_function(self)
