@@ -68,7 +68,7 @@ class TestParser:
 
     def test_interface_with_inheritance(self):
         """Test interface with base interfaces."""
-        source = """interface Colorable(Drawable) {
+        source = """interface Colorable extends Drawable {
     def set_color(color: str) -> None;
 }"""
 

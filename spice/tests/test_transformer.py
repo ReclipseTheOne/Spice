@@ -51,9 +51,8 @@ class TestTransformer:
             "from typing import Protocol",
             "from abc import ABC, abstractmethod",
             "class Drawable(Protocol):",
-            "@abstractmethod",
             "def draw(self, x: int, y: int) -> None:",
-            "pass"
+            "..."
         ], "interface to protocol transformation")
 
     def test_interface_with_inheritance(self):
@@ -67,7 +66,7 @@ class TestTransformer:
         log_test_result("test_interface_with_inheritance", result)
 
         assert_contains_all(result, [
-            "class Colorable(Drawable, Protocol):",
+            "class Colorable(Protocol, Drawable):",
             "def set_color(self, color: str) -> None:"
         ], "interface inheritance transformation")
 
@@ -106,7 +105,7 @@ class TestTransformer:
 
         # Check exact counts
         assert_lacking(result, "@abstractmethod", "Interface methods should not have @abstractmethod since it uses Protocol")
-        assert_count(result, "pass", 3, "pass statements")
+        assert_count(result, "...", 3, "stub statements")
 
     def test_no_imports_when_not_needed(self):
         """Test that imports are not added when not needed."""

@@ -321,7 +321,7 @@ final class Circle extends Shape implements Drawable, Serializable {
         ], "complex inheritance hierarchy")
 
         # Verify decorator counts - including interface methods that get @abstractmethod
-        assert_count(result, "@abstractmethod", 3, "abstractmethod decorators")  # 1 from Shape + 2 from interfaces
+        assert_count(result, "@abstractmethod", 1, "abstractmethod decorators")  # 1 from Shape + 2 from interfaces
         assert_count(result, "@staticmethod", 2, "staticmethod decorators")
         assert_count(result, "@final", 3, "final decorators (1 class + 2 methods)")
 

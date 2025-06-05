@@ -103,9 +103,11 @@ class Transformer:
         """Visit interface declaration node."""
         if self.verbose:
             print(f"Transforming interface '{node.name}' with {len(node.methods)} methods")
-            
+        
+        extensions = f", {', '.join(node.base_interfaces)}" if node.base_interfaces else ""
+
         # In Python, interfaces are created using Protocol from typing
-        self.output.append(f"class {node.name}(Protocol):\n")
+        self.output.append(f"class {node.name}(Protocol{extensions}):\n")
         self.indent_level += 1
         
         # Class docstring
@@ -143,6 +145,7 @@ class Transformer:
         self.output.append(self._indent(f'"""Interface method."""\n'))
         self.output.append(self._indent("...\n"))  # ... is the Ellipsis notation for pass in stub methods
         self.indent_level -= 1
+
 
     def visit_ClassDeclaration(self, node: ClassDeclaration):
         """Visit class declaration node."""
