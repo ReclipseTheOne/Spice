@@ -1,55 +1,131 @@
-# Example Spy code demonstrating new syntax features
+# Simple Getting Started Example - Basic class keywords and syntax
+# This is a beginner-friendly introduction to Spy language features
 
+# Define a simple interface
 interface Drawable {
-    def draw(x: int, y: int) -> None;
-    def get_bounds() -> tuple;
-}
-
-interface Colorable {
-    def set_color(color: str) -> None;
+    def draw() -> None;
     def get_color() -> str;
 }
 
-abstract class Shape(Drawable) {
-    def __init__(self) {
-        self.x = 0;
-        self.y = 0;
-    }
-
-    abstract def calculate_area() -> float;
-}
-
-final class Circle(Shape, Colorable) {
-    static PI = 3.14159;
-
-    def __init__(self, radius: float) {
-        super().__init__();
-        self.radius = radius;
-        self.color = "black";
-    }
-
-    def draw(self, x: int, y: int) -> None {
-        print(f"Drawing circle at ({x}, {y})");
-    }
-
-    def get_bounds(self) -> tuple {
-        return (self.x - self.radius, self.y - self.radius,
-                self.x + self.radius, self.y + self.radius);
-    }
-
-    def calculate_area(self) -> float {
-        return Circle.PI * self.radius ** 2;
-    }
-
-    def set_color(self, color: str) -> None {
+# Abstract base class
+abstract class Shape implements Drawable {
+    def __init__(self, color: str) -> None {
         self.color = color;
     }
-
-    def get_color(self) -> str {
+    
+    # Abstract method - must be implemented by subclasses
+    abstract def get_area() -> float;
+    
+    # Final method - cannot be overridden
+    final def get_color() -> str {
         return self.color;
     }
-
-    static def from_diameter(diameter: float) -> Circle {
-        return Circle(diameter / 2);
+    
+    # Static utility method
+    static def get_shape_count() -> int {
+        if not hasattr(Shape, '_count') {
+            Shape._count = 0;
+        }
+        return Shape._count;
+    }
+    
+    # Regular method that can be overridden
+    def get_description() -> str {
+        return f"A {self.color} shape";
     }
 }
+
+# Concrete implementation of Shape
+class Circle extends Shape {
+    def __init__(self, color: str, radius: float) -> None {
+        super().__init__(color);
+        self.radius = radius;
+        if (hasattr(Shape, '_count')) {
+            Shape._count += 1;
+        } else {
+            Shape._count = 1;
+        }
+    }
+    
+    def get_area() -> float {
+        return 3.14159 * self.radius * self.radius;
+    }
+    
+    def draw() -> None {
+        print(f"Drawing a {self.color} circle with radius {self.radius}");
+    }
+    
+    def get_description() -> str {
+        return f"A {self.color} circle with radius {self.radius}";
+    }
+}
+
+# Another concrete implementation
+final class Square extends Shape {
+    def __init__(self, color: str, side: float) -> None {
+        super().__init__(color);
+        self.side = side;
+        if (hasattr(Shape, '_count')) {
+            Shape._count += 1;
+        } else {
+            Shape._count = 1;
+        }
+    }
+    
+    def get_area() -> float {
+        return self.side * self.side;
+    }
+    
+    def draw() -> None {
+        print(f"Drawing a {self.color} square with side {self.side}");
+    }
+    
+    # Final method specific to squares
+    final def get_perimeter() -> float {
+        return 4 * self.side;
+    }
+}
+
+# Utility class with only static methods
+final class MathUtils {
+    static def pi() -> float {
+        return 3.14159;
+    }
+    
+    static def square(x: float) -> float {
+        return x * x;
+    }
+    
+    static def circle_area(radius: float) -> float {
+        return MathUtils.pi() * MathUtils.square(radius);
+    }
+}
+
+# Demonstrate the functionality
+def main() -> None {
+    print("=== Spy Language Demo ===");
+    
+    # Create some shapes
+    circle = Circle("red", 5.0);
+    square = Square("blue", 4.0);
+    
+    # Demonstrate polymorphism
+    shapes = [circle, square];
+    
+    for shape in shapes {
+        print(f"Shape: {shape.get_description()}");
+        print(f"Area: {shape.get_area():.2f}");
+        print(f"Color: {shape.get_color()}");
+        shape.draw();
+    }
+    
+    # Demonstrate final method on square
+    print(f"Square perimeter: {square.get_perimeter()}");
+    
+    # Demonstrate static methods
+    print(f"Total shapes created: {Shape.get_shape_count()}");
+    print(f"Pi value: {MathUtils.pi()}");
+    print(f"Circle area using utility: {MathUtils.circle_area(5.0):.2f}");
+
+# Run the demo
+main();

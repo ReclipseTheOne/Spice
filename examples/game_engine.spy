@@ -1,0 +1,267 @@
+// Game Engine Architecture Example - Advanced class modifiers and design patterns
+// This demonstrates: abstract classes, final methods, static utilities, complex inheritance
+
+// Core engine interfaces
+interface Renderable {
+    def render() -> None;
+    def get_render_priority() -> int;
+}
+
+interface Updateable {
+    def update(delta_time: float) -> None;
+}
+
+interface Collidable {
+    def get_bounds() -> tuple;
+    def on_collision(other) -> None;
+}
+
+// Abstract base class for all game objects
+abstract class GameObject implements Updateable {
+    def __init__(self, x: float, y: float) -> None {
+        self.x = x;
+        self.y = y;
+        self.active = True;
+        self.id = GameObject.generate_id();
+    }
+    
+    // Static ID generator
+    static def generate_id() -> int {
+        if not hasattr(GameObject, '_next_id') {
+            GameObject._next_id = 1;
+        }
+        id_val = GameObject._next_id;
+        GameObject._next_id += 1;
+        return id_val;
+    }
+    
+    // Abstract methods that subclasses must implement
+    abstract def get_type() -> str;
+    
+    // Final methods that cannot be overridden
+    final def get_position() -> tuple {
+        return (self.x, self.y);
+    }
+    
+    final def set_position(x: float, y: float) -> None {
+        self.x = x;
+        self.y = y;
+    }
+    
+    final def destroy() -> None {
+        self.active = False;
+        print(f"GameObject {self.id} destroyed");
+    }
+    
+    def update(delta_time: float) -> None {
+        // Base update logic - can be overridden
+        pass;
+    }
+}
+
+// Abstract class for visual game objects
+abstract class VisualGameObject extends GameObject implements Renderable {
+    def __init__(self, x: float, y: float, sprite_path: str) -> None {
+        super().__init__(x, y);
+        self.sprite_path = sprite_path;
+        self.visible = True;
+    }
+    
+    def render() -> None {
+        if self.visible {
+            print(f"Rendering {self.get_type()} at ({self.x}, {self.y})");
+        }
+    }
+    
+    final def hide() -> None {
+        self.visible = False;
+    }
+    
+    final def show() -> None {
+        self.visible = True;
+    }
+}
+
+// Player character class
+final class Player extends VisualGameObject implements Collidable {
+    def __init__(self, x: float, y: float) -> None {
+        super().__init__(x, y, "player.png");
+        self.health = 100;
+        self.score = 0;
+        self.speed = 5.0;
+    }
+    
+    def get_type() -> str {
+        return "Player";
+    }
+    
+    def update(delta_time: float) -> None {
+        // Player-specific update logic
+        super().update(delta_time);
+    }
+    
+    def get_render_priority() -> int {
+        return 10;  // High priority for player
+    }
+    
+    def get_bounds() -> tuple {
+        return (self.x - 16, self.y - 16, 32, 32);  // 32x32 player bounds
+    }
+    
+    def on_collision(other) -> None {
+        if other.get_type() == "Enemy" {
+            self.take_damage(10);
+        } elif other.get_type() == "Powerup" {
+            self.score += 100;
+        }
+    }
+    
+    final def take_damage(amount: int) -> None {
+        self.health -= amount;
+        print(f"Player took {amount} damage. Health: {self.health}");
+        if self.health <= 0 {
+            self.destroy();
+        }
+    }
+    
+    final def move(dx: float, dy: float) -> None {
+        self.x += dx * self.speed;
+        self.y += dy * self.speed;
+    }
+}
+
+// Enemy base class
+abstract class Enemy extends VisualGameObject implements Collidable {
+    def __init__(self, x: float, y: float, sprite_path: str, damage: int) -> None {
+        super().__init__(x, y, sprite_path);
+        self.damage = damage;
+        self.health = 50;
+    }
+    
+    def get_render_priority() -> int {
+        return 5;  // Medium priority
+    }
+    
+    def get_bounds() -> tuple {
+        return (self.x - 12, self.y - 12, 24, 24);  // 24x24 enemy bounds
+    }
+    
+    def on_collision(other) -> None {
+        if other.get_type() == "Player" {
+            // Enemy damages player on contact
+            pass;  // Handled by player's collision
+        }
+    }
+    
+    abstract def get_ai_behavior() -> str;
+    
+    final def take_damage(amount: int) -> None {
+        self.health -= amount;
+        if self.health <= 0 {
+            self.destroy();
+        }
+    }
+}
+
+// Specific enemy types
+final class Goblin extends Enemy {
+    def __init__(self, x: float, y: float) -> None {
+        super().__init__(x, y, "goblin.png", 15);
+        self.speed = 2.0;
+    }
+    
+    def get_type() -> str {
+        return "Enemy";
+    }
+    
+    def get_ai_behavior() -> str {
+        return "chase_player";
+    }
+    
+    def update(delta_time: float) -> None {
+        // Simple AI: move towards player (simplified)
+        super().update(delta_time);
+        print(f"Goblin at ({self.x}, {self.y}) is chasing player");
+    }
+}
+
+final class Dragon extends Enemy {
+    def __init__(self, x: float, y: float) -> None {
+        super().__init__(x, y, "dragon.png", 30);
+        self.speed = 1.5;
+        self.health = 200;  // Dragons are tougher
+    }
+    
+    def get_type() -> str {
+        return "Enemy";
+    }
+    
+    def get_ai_behavior() -> str {
+        return "patrol_and_attack";
+    }
+    
+    def update(delta_time: float) -> None {
+        super().update(delta_time);
+        print(f"Dragon at ({self.x}, {self.y}) is patrolling");
+    }
+    
+    final def breathe_fire() -> None {
+        print("Dragon breathes fire!");
+    }
+}
+
+// Game utilities class with only static methods
+final class GameUtils {
+    static def calculate_distance(x1: float, y1: float, x2: float, y2: float) -> float {
+        return ((x2 - x1) ** 2 + (y2 - y1) ** 2) ** 0.5;
+    }
+    
+    static def check_collision(obj1, obj2) -> bool {
+        bounds1 = obj1.get_bounds();
+        bounds2 = obj2.get_bounds();
+        // Simple AABB collision detection
+        return not (bounds1[0] + bounds1[2] < bounds2[0] or
+                   bounds2[0] + bounds2[2] < bounds1[0] or
+                   bounds1[1] + bounds1[3] < bounds2[1] or
+                   bounds2[1] + bounds2[3] < bounds1[1]);
+    }
+    
+    static def get_game_version() -> str {
+        return "1.0.0";
+    }
+}
+
+// Game demo function
+def run_game_demo() -> None {
+    print(f"Starting Game Engine Demo v{GameUtils.get_game_version()}");
+    
+    // Create game objects
+    player = Player(100.0, 100.0);
+    goblin = Goblin(200.0, 150.0);
+    dragon = Dragon(300.0, 200.0);
+    
+    // Simulate game loop
+    for frame in range(3) {
+        print(f"\n--- Frame {frame + 1} ---");
+        
+        // Update all objects
+        player.update(0.016);  // 60 FPS
+        goblin.update(0.016);
+        dragon.update(0.016);
+        
+        // Render all objects
+        player.render();
+        goblin.render();
+        dragon.render();
+        
+        // Check collisions
+        if GameUtils.check_collision(player, goblin) {
+            player.on_collision(goblin);
+        }
+        
+        // Move player slightly each frame
+        player.move(1.0, 0.5);
+    }
+    
+    print(f"\nGame objects created: {GameObject.generate_id() - 1}");
+}

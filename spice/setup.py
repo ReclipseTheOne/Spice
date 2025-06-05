@@ -6,10 +6,10 @@ setup(
     description="A Python Superset with all the Spice",
     author="Reclipse",
     packages=find_packages(where="spice"),
-    package_dir={"": "spice"},
-    entry_points={
+    package_dir={"": "spice"},    entry_points={
         "console_scripts": [
-            "spyc=cli.__main__:main"
+            "spyc=cli.__main__:main",
+            "spy=cli.run:run"
         ]
     },
     python_requires=">=3.8",

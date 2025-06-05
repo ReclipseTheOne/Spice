@@ -1,5 +1,6 @@
 {
     "python.analysis.extraPaths": [
         "./spice"
-    ]
+    ],
+    "python.REPL.enableREPLSmartSend": false
 }
