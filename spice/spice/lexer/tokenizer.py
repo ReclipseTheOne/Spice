@@ -40,7 +40,7 @@ class Lexer:
         'in': TokenType.IN,
         'is': TokenType.IS,
         'lambda': TokenType.LAMBDA,
-        
+
         # Spice keywords
         'interface': TokenType.INTERFACE,
         'abstract': TokenType.ABSTRACT,
@@ -117,10 +117,10 @@ class Lexer:
         if self.verbose:
             print(f"Starting tokenization of source code ({len(source)} characters)")
             print(source)
-        
+
         tokens = []
         lines = source.split('\n')
-        
+
         if self.verbose:
             print(f"Processing {len(lines)} lines of code")
 
@@ -131,22 +131,22 @@ class Lexer:
 
         # Add EOF token
         tokens.append(Token(TokenType.EOF, None, len(lines), 0))
-        
+
         if self.verbose:
             token_types = {}
             for token in tokens:
                 if token.type != TokenType.COMMENT and token.type != TokenType.NEWLINE:
                     token_types[token.type.name] = token_types.get(token.type.name, 0) + 1
-            
+
             print(f"Tokenization complete: {len(tokens)} tokens generated")
             print(f"Token type distribution: {token_types}")
-            
+
             # Print first few tokens for debugging
             if len(tokens) > 10:
                 print("First 10 tokens: " + ', '.join(f"{token.type.name}({token.value})" for token in tokens[:10] if token.type != TokenType.COMMENT))
             else:
                 print("All tokens: " + ', '.join(f"{token.type.name}({token.value})" for token in tokens if token.type != TokenType.COMMENT))
-        
+
         return tokens
 
     def _tokenize_line(self, line: str, line_num: int, tokens: List[Token]):
@@ -198,7 +198,7 @@ class Lexer:
                         tokens.append(Token(token_type, value, line_num, pos))
                     elif self.verbose:
                         print(f"Line {line_num}, Column {pos}: Skipping comment")
-                    
+
                     # Check for illegal follows
                     if len(tokens) >= 2:
                         err = check(tokens[-2].type, tokens[-1].type, line_num, pos)
@@ -214,7 +214,7 @@ class Lexer:
                 if self.verbose:
                     print(f"ERROR: {error_msg}")
                 raise SyntaxError(error_msg)
-            
+
         # Add newline token at end of non-empty lines
         tokens.append(Token(TokenType.NEWLINE, '\\\\n', line_num, len(line)))
         if self.verbose and len(tokens) > 1 and tokens[-2].type != TokenType.NEWLINE:

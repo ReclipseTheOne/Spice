@@ -105,6 +105,9 @@ class TokenType(Enum):
     CASE = auto()
     DEFAULT = auto()
 
+    # Groups (not used in the lexer, just for utility in the follow set)
+    BOOLEAN = auto()
+
 
 @dataclass
 class Token:
@@ -117,7 +120,7 @@ class Token:
 
     def __repr__(self):
         return f"Token({self.type.name}, {self.value!r}, {self.line}, {self.column})"
-    
+
 
 # Util methods
 def isBoolean(token: Union[Token, TokenType]) -> bool:
@@ -133,7 +136,7 @@ def isLogicToken(token: Union[Token, TokenType]) -> bool:
         return token.type in (TokenType.AND, TokenType.OR, TokenType.NOT, TokenType.IN, TokenType.IS)
     else:
         return token in (TokenType.AND, TokenType.OR, TokenType.NOT, TokenType.IN, TokenType.IS)
-    
+
 def isValidFirstLogicToken(token: Union[Token, TokenType]) -> bool:
     """Check if the token is a valid first logic token"""
     if isinstance(token, Token):

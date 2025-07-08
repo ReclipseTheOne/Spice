@@ -284,3 +284,36 @@ class LambdaExpression(Expression):
 
     def accept(self, visitor):
         return visitor.visit_lambda_expression(self)
+
+
+@dataclass
+class RaiseStatement(ASTNode):
+    """Raise statement for exceptions."""
+    exception: Optional["Expression"] = None
+    has_semicolon: bool = False
+
+    def accept(self, visitor):
+        return visitor.visit_raise_statement(self)
+
+
+@dataclass
+class ImportStatement(ASTNode):
+    """Import statement: import module or from module import names."""
+    module: str
+    names: List[str] = field(default_factory=list)  # Empty for 'import module'
+    aliases: List[Optional[str]] = field(default_factory=list)  # For 'as' aliases
+    is_from_import: bool = False
+    has_semicolon: bool = False
+
+    def accept(self, visitor):
+        return visitor.visit_import_statement(self)
+
+
+@dataclass
+class DictEntry(Expression):
+    """Dictionary key-value pair."""
+    key: Expression
+    value: Expression
+
+    def accept(self, visitor):
+        return visitor.visit_dict_entry(self)

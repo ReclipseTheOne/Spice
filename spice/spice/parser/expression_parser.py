@@ -308,7 +308,6 @@ class ExpressionParser:
             return LiteralExpression(value=elements, literal_type='list')
 
         if self.parser.match(TokenType.LBRACE):
-
             # Only parse as literal if NOT in condition context
             # (to avoid conflicts with statement blocks)
             if context != "condition":
@@ -316,16 +315,40 @@ class ExpressionParser:
 
                 if not self.parser.check(TokenType.RBRACE):
                     while True:
-                        elem = self.parse_expression(context)
-                        if elem is None:
-                            raise ParserError("Expected expression in set/dict")
-                        elements.append(elem)
+                        # Try to parse as key-value pair first
+                        if self._is_dict_entry():
+                            # Parse key
+                            key = self.parse_expression(context)
+                            if key is None:
+                                raise ParserError("Expected key in dictionary")
+
+                            self.parser.consume(TokenType.COLON, "Expected ':' after dictionary key")
+
+                            # Parse value
+                            value = self.parse_expression(context)
+                            if value is None:
+                                raise ParserError("Expected value in dictionary")
+
+                            # Create dict entry
+                            from parser.ast_nodes import DictEntry
+                            elements.append(DictEntry(key=key, value=value))
+                        else:
+                            # Parse as set element
+                            elem = self.parse_expression(context)
+                            if elem is None:
+                                raise ParserError("Expected expression in set")
+                            elements.append(elem)
 
                         if not self.parser.match(TokenType.COMMA):
                             break
 
                 self.parser.consume(TokenType.RBRACE, "Expected '}' after set/dict elements")
-                return LiteralExpression(value=elements, literal_type='set')  # or 'dict' based on content
+
+                # Determine if it's a dict or set based on elements
+                if elements and all(isinstance(elem, DictEntry) for elem in elements):
+                    return LiteralExpression(value=elements, literal_type='dict')
+                else:
+                    return LiteralExpression(value=elements, literal_type='set')
             else:
                 # In condition context, don't consume { - let it terminate
                 return None
@@ -442,3 +465,19 @@ class ExpressionParser:
         # Implementation depends on your AST structure
         # This is a placeholder
         raise NotImplementedError("Lambda parsing not implemented yet")
+
+
+    # Helper Methods
+    def _is_dict_entry(self) -> bool:
+        """Check if the next tokens form a dictionary entry (key: value)."""
+        # Simple lookahead for common dict patterns
+        # Check for: STRING : or IDENTIFIER :
+        current_pos = self.parser.current
+
+        # Look for string literal followed by colon
+        if (current_pos < len(self.parser.tokens) - 1 and
+            self.parser.tokens[current_pos].type in [TokenType.STRING, TokenType.IDENTIFIER] and
+            self.parser.tokens[current_pos + 1].type == TokenType.COLON):
+            return True
+
+        return False

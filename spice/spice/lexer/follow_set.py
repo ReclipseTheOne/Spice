@@ -16,7 +16,7 @@ FOLLOW_SET = {
     # alpha /
     # alpha %
     # alpha **
-    # alpha // 
+    # alpha //
     # alpha +
     # alpha -
     # alpha <
@@ -37,13 +37,18 @@ FOLLOW_SET = {
     # ... alpha or
     # ... alpha in
     # alpha(beta) (for alpha and beta)
-    # alpha : 
+    # alpha :
     # alpha.beta
     # alpha, beta
     # (class) alpha {
     # alpha = [beta]
     # alpha extends beta
     # alpha implements beta
+    # ... alpha, beta]
+    # alpha is None
+    # alpha not in list
+    # alpha if condition
+    # alpha for item
     TokenType.IDENTIFIER: {
         TokenType.SEMICOLON, TokenType.STAR, TokenType.SLASH, TokenType.PERCENT,
         TokenType.DOUBLESTAR, TokenType.DOUBLESLASH, TokenType.PLUS, TokenType.MINUS,
@@ -53,14 +58,20 @@ FOLLOW_SET = {
         TokenType.PERCENTASSIGN, TokenType.DOUBLESTARASSIGN, TokenType.DOUBLESLASHASSIGN,
         TokenType.AND, TokenType.OR, TokenType.IN, TokenType.RPAREN, TokenType.LPAREN,
         TokenType.COLON, TokenType.DOT, TokenType.COMMA, TokenType.LBRACE, TokenType.RBRACKET,
-        TokenType.EXTENDS, TokenType.IMPLEMENTS
+        TokenType.EXTENDS, TokenType.IMPLEMENTS, TokenType.LBRACKET,
+        TokenType.IS, TokenType.NOT, TokenType.IF, TokenType.FOR
     },
 
     # alpha = "alpha";
     # alpha("beta");
     # alpha, beta
+    # ..., "gamma"]
+    # == "alpha" {
+    # ..., "alpha" }
+    # "key": value (dictionary literals)
     TokenType.STRING: {
-        TokenType.SEMICOLON, TokenType.RPAREN, TokenType.COMMA
+        TokenType.SEMICOLON, TokenType.RPAREN, TokenType.COMMA, TokenType.LBRACE,
+        TokenType.RBRACKET, TokenType.RBRACE, TokenType.COLON
     },
 
 
@@ -69,7 +80,7 @@ FOLLOW_SET = {
     # 1 /
     # 1 %
     # 1 **
-    # 1 // 
+    # 1 //
     # 1 +
     # 1 -
     # 1 <
@@ -82,20 +93,31 @@ FOLLOW_SET = {
     # ... 1 or
     # ... 1 in
     # alpha(1)
+    # 1, 2
+    # ...1, 2]
+    # a == 1 {
+    # 1 for i (list comprehensions)
+    # 1 if condition
+    # 1 else value
+    # 1: value
     TokenType.NUMBER: {
         TokenType.SEMICOLON, TokenType.STAR, TokenType.SLASH, TokenType.PERCENT,
         TokenType.DOUBLESTAR, TokenType.DOUBLESLASH, TokenType.PLUS, TokenType.MINUS,
         TokenType.LESS, TokenType.GREATER, TokenType.LESSEQUAL, TokenType.GREATEREQUAL,
         TokenType.EQUAL, TokenType.NOTEQUAL, TokenType.AND, TokenType.OR, TokenType.IN,
-        TokenType.RPAREN
+        TokenType.RPAREN, TokenType.COMMA, TokenType.RBRACKET, TokenType.LBRACE,
+        TokenType.FOR, TokenType.IF, TokenType.ELSE, TokenType.RBRACE, TokenType.COLON
     },
 
 
-    #
+    # alpha: beta
+    # -> type:
+    # :] (empty collections)
+    # "key": value
     TokenType.COLON: {
-        TokenType.IDENTIFIER, TokenType.NONE
+        TokenType.IDENTIFIER, TokenType.NONE, TokenType.RBRACKET, TokenType.STRING, TokenType.NUMBER,
+        TokenType.TRUE, TokenType.FALSE, TokenType.LBRACKET, TokenType.LBRACE
     },
-
     #
     TokenType.SEMICOLON: {
         TokenType.DEF, TokenType.PASS, TokenType.RETURN, TokenType.IF, TokenType.FOR, TokenType.WHILE, TokenType.SWITCH,
@@ -103,11 +125,12 @@ FOLLOW_SET = {
     },
 
 
-    # Any start of a new line
+    #
     TokenType.NEWLINE: {
         TokenType.ABSTRACT, TokenType.CLASS, TokenType.DEF, TokenType.FINAL, TokenType.INTERFACE,
         TokenType.IDENTIFIER, TokenType.PASS, TokenType.RETURN, TokenType.IF, TokenType.FOR, TokenType.WHILE,
-        TokenType.SWITCH, TokenType.RBRACE, TokenType.COMMENT, TokenType.EOF, TokenType.NEWLINE, TokenType.STATIC
+        TokenType.SWITCH, TokenType.RBRACE, TokenType.COMMENT, TokenType.EOF, TokenType.NEWLINE, TokenType.STATIC,
+        TokenType.RAISE, TokenType.IMPORT, TokenType.STRING
     },
 
     # -> None:
@@ -116,7 +139,7 @@ FOLLOW_SET = {
     TokenType.NONE: {
         TokenType.COLON, TokenType.LBRACE, TokenType.SEMICOLON
     },
-    
+
 
     # alpha implements beta:
     TokenType.IMPLEMENTS: {
@@ -161,8 +184,11 @@ FOLLOW_SET = {
     # alpha, beta, gamma
     # 1, 2, 3
     # "string1", "string2", "string3"
+    # True, False
+    # [list], (tuple)
     TokenType.COMMA: {
-        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING
+        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.TRUE, TokenType.FALSE,
+        TokenType.LBRACKET, TokenType.LPAREN
     },
 
     # alpha.beta
@@ -173,37 +199,13 @@ FOLLOW_SET = {
     # alpha = beta; / alpha = gamma(...);
     # alpha = 1;
     # alpha = "string";
+    # alpha = (alpha, beta);
+    # alpha = [alpha, beta];
+    # alpha = {alpha: beta, gamma: delta};
     TokenType.ASSIGN: {
         TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.FSTRING, TokenType.RSTRING,
-        TokenType.FRSTRING, TokenType.REGEX, TokenType.LPAREN, TokenType.LBRACKET, TokenType.LBRACE
-    },
-
-    # alpha += beta;
-    # alpha += 1;
-    # alpha += "string";
-    TokenType.PLUSASSIGN: {
-        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING
-    },
-    
-    # alpha -= beta;
-    # alpha -= 1;
-    # alpha -= "string";
-    TokenType.MINUSASSIGN: {
-        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING
-    },
-
-    # alpha *= beta;
-    # alpha *= 1;
-    # alpha *= "string";
-    TokenType.STARASSIGN: {
-        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING
-    },
-
-    # alpha /= beta;
-    # alpha /= 1;
-    # alpha /= "string";
-    TokenType.SLASHASSIGN: {
-        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING
+        TokenType.FRSTRING, TokenType.REGEX, TokenType.LPAREN, TokenType.LBRACKET, TokenType.LBRACE,
+        TokenType.TRUE, TokenType.FALSE, TokenType.NONE
     },
 
     # alpha * beta;
@@ -245,7 +247,8 @@ FOLLOW_SET = {
     # alpha + 1;
     # alpha + "string";
     TokenType.PLUS: {
-        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING
+        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.FSTRING, TokenType.RSTRING, TokenType.FRSTRING,
+        TokenType.REGEX, TokenType.LPAREN, TokenType.LBRACKET, TokenType.LBRACE
     },
 
     # alpha - beta;
@@ -263,23 +266,43 @@ FOLLOW_SET = {
 
     # -> None
     # -> alpha
+    # -> "string" (for return type annotations)
+    # -> [list] (for complex return types)
     TokenType.ARROW: {
-        TokenType.NONE, TokenType.IDENTIFIER
+        TokenType.NONE, TokenType.IDENTIFIER, TokenType.STRING, TokenType.LBRACKET
+    },
+
+    # raise ValueError
+    # raise Exception("message")
+    TokenType.RAISE: {
+        TokenType.IDENTIFIER, TokenType.STRING
+    },
+
+    # import module
+    # import package.module
+    TokenType.IMPORT: {
+        TokenType.IDENTIFIER
     },
 
     # return alpha;
     # return 1;
     # return "string";
     # return;
+    # return (alpha, beta);
+    # return not ...
+    # return True/False
+    # return {dict}
     TokenType.RETURN: {
-        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.FSTRING, TokenType.RSTRING, TokenType.SEMICOLON
+        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.FSTRING, TokenType.RSTRING,
+        TokenType.SEMICOLON, TokenType.LPAREN, TokenType.NOT, TokenType.TRUE, TokenType.FALSE,
+        TokenType.LBRACE
     },
 
 
     # if alpha:
     # if 1 ...
     # if "string" ...
-    # if (...) 
+    # if (...)
     # if not ...
     TokenType.IF: {
         TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.FSTRING, TokenType.RSTRING, TokenType.LPAREN, TokenType.NOT
@@ -287,8 +310,14 @@ FOLLOW_SET = {
 
     # else:
     # else {
+    # else 0 (ternary-like)
     TokenType.ELSE: {
-        TokenType.LBRACE, TokenType.COLON
+        TokenType.LBRACE, TokenType.COLON, TokenType.NUMBER, TokenType.IDENTIFIER, TokenType.STRING
+    },
+
+    #
+    TokenType.ELIF: {
+        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.FSTRING, TokenType.RSTRING, TokenType.LPAREN, TokenType.NOT
     },
 
     # for alpha ...
@@ -302,17 +331,30 @@ FOLLOW_SET = {
     # alpha in (alpha, beta)
     # alpha in [alpha, beta]
     TokenType.IN: {
-        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.FSTRING, 
+        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.FSTRING,
         TokenType.RSTRING, TokenType.LPAREN, TokenType.LBRACKET
+    },
+
+    # x is None
+    # obj is not None
+    TokenType.IS: {
+        TokenType.NONE, TokenType.IDENTIFIER, TokenType.NOT
+    },
+
+    TokenType.AND: {
+        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.TRUE, TokenType.FALSE,
+        TokenType.LPAREN, TokenType.NOT
     },
 
     # ... not alpha:
     # ... not 1 ...
     # ... not "string" ...
-    # ... (...) 
+    # ... (...)
     # ... not ...
+    # obj not in list
     TokenType.NOT: {
-        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.FSTRING, TokenType.RSTRING, TokenType.LPAREN
+        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.FSTRING, TokenType.RSTRING,
+        TokenType.LPAREN, TokenType.IN
     },
 
 
@@ -324,7 +366,7 @@ FOLLOW_SET = {
     # [[]]
     TokenType.LBRACKET: {
         TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.FSTRING, TokenType.RSTRING,
-        TokenType.FRSTRING, TokenType.MINUS, TokenType.LPAREN, TokenType.LBRACKET, TokenType.RBRACKET, 
+        TokenType.FRSTRING, TokenType.MINUS, TokenType.LPAREN, TokenType.LBRACKET, TokenType.RBRACKET,
     },
 
     # for a in [alpha]:
@@ -332,8 +374,14 @@ FOLLOW_SET = {
     # a = [alpha];
     # [[alpha]]
     # alpha([beta])
+    # [item] { body }
     TokenType.RBRACKET: {
-        TokenType.COLON, TokenType.COMMA, TokenType.SEMICOLON, TokenType.RBRACE, TokenType.RPAREN
+        TokenType.COLON, TokenType.COMMA, TokenType.SEMICOLON, TokenType.RBRACE, TokenType.RPAREN,
+        TokenType.PLUS, TokenType.MINUS, TokenType.STAR, TokenType.SLASH, TokenType.PERCENT,
+        TokenType.DOUBLESTAR, TokenType.DOUBLESLASH, TokenType.LESS, TokenType.GREATER,
+        TokenType.LESSEQUAL, TokenType.GREATEREQUAL, TokenType.EQUAL, TokenType.NOTEQUAL,
+        TokenType.AND, TokenType.OR, TokenType.IN, TokenType.DOT, TokenType.RBRACKET,
+        TokenType.LBRACE
     },
 
     # (alpha, beta)
@@ -357,16 +405,124 @@ FOLLOW_SET = {
         TokenType.AND, TokenType.OR, TokenType.RBRACE, TokenType.IN, TokenType.DOT, TokenType.RPAREN
     },
 
-    #
+    # class body {
+    # method body {
+    # { dict literal }
+    # { comprehension }
     TokenType.LBRACE: {
-        TokenType.DEF, TokenType.PASS, TokenType.RETURN, TokenType.IF, TokenType.FOR, TokenType.WHILE, TokenType.SWITCH,
-        TokenType.IDENTIFIER, TokenType.RBRACE, TokenType.NEWLINE, TokenType.COMMENT
+        TokenType.DEF, TokenType.PASS, TokenType.RETURN, TokenType.IF, TokenType.FOR, TokenType.WHILE,
+        TokenType.SWITCH, TokenType.IDENTIFIER, TokenType.RBRACE, TokenType.NEWLINE, TokenType.COMMENT,
+        TokenType.STRING, TokenType.NUMBER
     },
 
     #
     TokenType.RBRACE: {
-        TokenType.ELSE, TokenType.EOF, TokenType.NEWLINE, TokenType.SEMICOLON, TokenType.RBRACE, TokenType.CASE, TokenType.DEFAULT
+        TokenType.ELSE, TokenType.EOF, TokenType.NEWLINE, TokenType.SEMICOLON, TokenType.RBRACE, TokenType.CASE, TokenType.DEFAULT,
+        TokenType.ELIF
     },
+
+    # True;
+    # ...True, False)
+    # True, False
+    # True, False]
+    TokenType.BOOLEAN: {
+        TokenType.SEMICOLON, TokenType.RPAREN, TokenType.COMMA, TokenType.RBRACKET
+    },
+
+    # pass;
+    TokenType.PASS: {
+        TokenType.SEMICOLON
+    },
+
+    # alpha < beta;
+    # alpha < 1;
+    # alpha < "string";
+    # alpha < (expr);
+    # alpha < [list];
+    # alpha < {set};
+    # alpha < func();
+    # alpha < obj.attr;
+    # alpha < True/False/None;
+    TokenType.LESS: {
+        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.FSTRING,
+        TokenType.RSTRING, TokenType.FRSTRING, TokenType.LPAREN, TokenType.LBRACKET,
+        TokenType.LBRACE, TokenType.TRUE, TokenType.FALSE, TokenType.NONE, TokenType.MINUS
+    },
+
+    # alpha > beta;
+    # alpha > 1;
+    # alpha > "string";
+    # alpha > (expr);
+    # alpha > [list];
+    # alpha > {set};
+    # alpha > func();
+    # alpha > obj.attr;
+    # alpha > True/False/None;
+    TokenType.GREATER: {
+        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.FSTRING,
+        TokenType.RSTRING, TokenType.FRSTRING, TokenType.LPAREN, TokenType.LBRACKET,
+        TokenType.LBRACE, TokenType.TRUE, TokenType.FALSE, TokenType.NONE, TokenType.MINUS
+    },
+
+    # alpha <= beta;
+    # alpha <= 1;
+    # alpha <= "string";
+    # alpha <= (expr);
+    # alpha <= [list];
+    # alpha <= {set};
+    # alpha <= func();
+    # alpha <= obj.attr;
+    # alpha <= True/False/None;
+    TokenType.LESSEQUAL: {
+        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.FSTRING,
+        TokenType.RSTRING, TokenType.FRSTRING, TokenType.LPAREN, TokenType.LBRACKET,
+        TokenType.LBRACE, TokenType.TRUE, TokenType.FALSE, TokenType.NONE, TokenType.MINUS
+    },
+
+    # alpha >= beta;
+    # alpha >= 1;
+    # alpha >= "string";
+    # alpha >= (expr);
+    # alpha >= [list];
+    # alpha >= {set};
+    # alpha >= func();
+    # alpha >= obj.attr;
+    # alpha >= True/False/None;
+    TokenType.GREATEREQUAL: {
+        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.FSTRING,
+        TokenType.RSTRING, TokenType.FRSTRING, TokenType.LPAREN, TokenType.LBRACKET,
+        TokenType.LBRACE, TokenType.TRUE, TokenType.FALSE, TokenType.NONE, TokenType.MINUS
+    },
+
+    # alpha == beta;
+    # alpha == 1;
+    # alpha == "string";
+    # alpha == (expr);
+    # alpha == [list];
+    # alpha == {set};
+    # alpha == func();
+    # alpha == obj.attr;
+    # alpha == True/False/None;
+    TokenType.EQUAL: {
+        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.FSTRING,
+        TokenType.RSTRING, TokenType.FRSTRING, TokenType.LPAREN, TokenType.LBRACKET,
+        TokenType.LBRACE, TokenType.TRUE, TokenType.FALSE, TokenType.NONE, TokenType.MINUS
+    },
+
+    # alpha != beta;
+    # alpha != 1;
+    # alpha != "string";
+    # alpha != (expr);
+    # alpha != [list];
+    # alpha != {set};
+    # alpha != func();
+    # alpha != obj.attr;
+    # alpha != True/False/None;
+    TokenType.NOTEQUAL: {
+        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.FSTRING,
+        TokenType.RSTRING, TokenType.FRSTRING, TokenType.LPAREN, TokenType.LBRACKET,
+        TokenType.LBRACE, TokenType.TRUE, TokenType.FALSE, TokenType.NONE, TokenType.MINUS
+    }
 }
 
 
@@ -383,10 +539,18 @@ class IllegalFollow:
 
 def get_follow_set(token_type):
     """Return the set of token types that can follow the given token type."""
-    
+
     # All string types follow the same rules
     if token_type in [TokenType.STRING, TokenType.FSTRING, TokenType.RSTRING, TokenType.FRSTRING, TokenType.REGEX]:
         token_type = TokenType.STRING
+
+    if token_type in [TokenType.STARASSIGN, TokenType.SLASHASSIGN, TokenType.PERCENTASSIGN,
+                      TokenType.DOUBLESTARASSIGN, TokenType.DOUBLESLASHASSIGN, TokenType.PLUSASSIGN,
+                      TokenType.MINUSASSIGN]:
+        token_type = TokenType.ASSIGN
+
+    if token_type in [TokenType.TRUE, TokenType.FALSE]:
+        token_type = TokenType.BOOLEAN
 
     return FOLLOW_SET.get(token_type, set())
 

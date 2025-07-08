@@ -8,7 +8,7 @@ from parser.ast_nodes import (
     PassStatement, Expression, AssignmentExpression, IdentifierExpression,
     AttributeExpression, LiteralExpression, CallExpression, ReturnStatement,
     IfStatement, ForStatement, WhileStatement, SwitchStatement, CaseClause, LogicalExpression,
-    UnaryExpression, ArgumentExpression
+    UnaryExpression, ArgumentExpression, RaiseStatement, ImportStatement
 )
 from errors import SpiceError
 import copy
@@ -348,6 +348,8 @@ class Parser:
                     return_type = self.advance().value
                 elif self.check(TokenType.NONE):
                     return_type = self.advance().value
+                elif self.check(TokenType.STRING):
+                    return_type = self.advance().value
                 else:
                     raise ParseError(f"Expected return type after '->' at line {self.peek().line}")
                 if self.verbose:
@@ -607,6 +609,18 @@ class Parser:
             from parser.ast_nodes import ReturnStatement
             return ReturnStatement(value=value, has_semicolon=has_semicolon)
 
+        # Raise statement
+        if self.match(TokenType.RAISE):
+            if self.verbose:
+                print("Parsing raise statement")
+            return self.parse_raise_statement()
+
+        # Import statement
+        if self.check(TokenType.IMPORT, TokenType.FROM):
+            if self.verbose:
+                print("Parsing import statement")
+            return self.parse_import_statement()
+
         # Expression statement
         if self.verbose:
             print("Parsing expression statement")
@@ -620,7 +634,7 @@ class Parser:
         expr = self.expr_parser.parse_expression()
 
         if expr is None and self.verbose:
-            print(f"Could not parse expression from token: {self.peek().type.name}")
+            raise ParseError(f"Could not parse expression at line {self.peek().line}")
 
         return expr
 
@@ -675,6 +689,14 @@ class Parser:
         # Switch statement
         if self.match(TokenType.SWITCH):
             return self.parse_switch_statement()
+
+        # Raise statement
+        if self.match(TokenType.RAISE):
+            return self.parse_raise_statement()
+
+        # Import statement
+        if self.check(TokenType.IMPORT, TokenType.FROM):
+            return self.parse_import_statement()
 
         # Expression statement
         expr = self.parse_expression()
@@ -809,6 +831,124 @@ class Parser:
         self.consume(TokenType.RBRACE, "Expected '}' after switch block")
 
         return SwitchStatement(expression=expr, cases=cases, default=default)
+
+    def parse_raise_statement(self) -> RaiseStatement:
+        if self.verbose:
+            print("Parsing raise statement")
+
+        exception = None
+
+        # Check if there's an exception expression
+        if not self.check(TokenType.SEMICOLON, TokenType.NEWLINE, TokenType.RBRACE):
+            exception = self.parse_expression()
+            if self.verbose and exception:
+                print(f"Parsed raise exception: {type(exception).__name__}")
+
+        has_semicolon = self.match(TokenType.SEMICOLON)
+
+        if self.verbose:
+            print(f"Completed raise statement (has_semicolon: {has_semicolon})")
+
+        return RaiseStatement(exception=exception, has_semicolon=has_semicolon)
+
+
+    def parse_import_statement(self) -> ImportStatement:
+        """Parse import statement."""
+        if self.verbose:
+            print("Parsing import statement")
+
+        # Check for 'from module import names' syntax
+        if self.match(TokenType.FROM):
+            # from module import name1, name2, ...
+            module = self.consume(TokenType.IDENTIFIER, "Expected module name after 'from'").value
+            if self.verbose:
+                print(f"Parsing 'from {module} import ...'")
+
+            # Build module path for dotted imports
+            while self.match(TokenType.DOT):
+                submodule = self.consume(TokenType.IDENTIFIER, "Expected module name after '.'").value
+                module += f".{submodule}"
+                if self.verbose:
+                    print(f"Extended module path: {module}")
+
+            self.consume(TokenType.IMPORT, "Expected 'import' after module name")
+
+            # Parse imported names
+            names = []
+            aliases = []
+
+            # First name
+            name = self.consume(TokenType.IDENTIFIER, "Expected name to import").value
+            names.append(name)
+
+            alias = None
+            if self.match(TokenType.AS):
+                alias = self.consume(TokenType.IDENTIFIER, "Expected alias after 'as'").value
+                if self.verbose:
+                    print(f"Import alias: {name} as {alias}")
+            aliases.append(alias)
+
+            # Additional names
+            while self.match(TokenType.COMMA):
+                name = self.consume(TokenType.IDENTIFIER, "Expected name to import").value
+                names.append(name)
+
+                alias = None
+                if self.match(TokenType.AS):
+                    alias = self.consume(TokenType.IDENTIFIER, "Expected alias after 'as'").value
+                    if self.verbose:
+                        print(f"Import alias: {name} as {alias}")
+                aliases.append(alias)
+
+            has_semicolon = self.match(TokenType.SEMICOLON)
+
+            if self.verbose:
+                print(f"Parsed from import: from {module} import {', '.join(names)}")
+
+            return ImportStatement(
+                module=module,
+                names=names,
+                aliases=aliases,
+                is_from_import=True,
+                has_semicolon=has_semicolon
+            )
+
+        elif self.match(TokenType.IMPORT):
+            # import module
+            module = self.consume(TokenType.IDENTIFIER, "Expected module name after 'import'").value
+            if self.verbose:
+                print(f"Parsing 'import {module}'")
+
+            # Build module path for dotted imports
+            while self.match(TokenType.DOT):
+                submodule = self.consume(TokenType.IDENTIFIER, "Expected module name after '.'").value
+                module += f".{submodule}"
+                if self.verbose:
+                    print(f"Extended module path: {module}")
+
+            # Optional alias
+            alias = None
+            if self.match(TokenType.AS):
+                alias = self.consume(TokenType.IDENTIFIER, "Expected alias after 'as'").value
+                if self.verbose:
+                    print(f"Import alias: {module} as {alias}")
+
+            has_semicolon = self.match(TokenType.SEMICOLON)
+
+            if self.verbose:
+                print(f"Parsed import: import {module}" + (f" as {alias}" if alias else ""))
+
+            return ImportStatement(
+                module=module,
+                names=[],
+                aliases=[alias] if alias else [],
+                is_from_import=False,
+                has_semicolon=has_semicolon
+            )
+
+        else:
+            raise ParseError("Expected 'import' or 'from' keyword")
+
 
     def parse_block(self) -> List[Any]:
         """Parse a block of statements enclosed in braces."""
