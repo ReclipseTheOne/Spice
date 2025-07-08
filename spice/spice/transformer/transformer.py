@@ -2,10 +2,10 @@
 
 # Import line will be very long but CTRL + Click doesn't work on * imports and I hate it
 from parser import (
-    Module, InterfaceDeclaration, MethodSignature, ClassDeclaration, 
+    Module, InterfaceDeclaration, MethodSignature, ClassDeclaration,
     FunctionDeclaration, ExpressionStatement, PassStatement,
     AssignmentExpression, IdentifierExpression, AttributeExpression,
-    LiteralExpression, CallExpression
+    LiteralExpression, CallExpression, ForStatement
 )
 
 
@@ -22,23 +22,23 @@ class Transformer:
         """Transform AST to Python code."""
         if self.verbose:
             print("Starting transformation of AST to Python code")
-            
+
         self.output = []
         self.visit_module(ast)
-        
+
         result = ''.join(self.output)
-        
+
         if self.verbose:
             lines = result.count('\n') + 1
             print(f"Transformation complete: Generated {lines} lines of Python code")
-            
+
         return result
 
     def visit_module(self, node: Module):
         """Visit module node."""
         if self.verbose:
             print(f"Processing module with {len(node.body)} top-level statements")
-            
+
         # Add imports if needed
         has_interfaces = any(isinstance(stmt, InterfaceDeclaration) for stmt in node.body)
         has_abstract = any(isinstance(stmt, ClassDeclaration) and stmt.is_abstract for stmt in node.body)
@@ -46,7 +46,7 @@ class Transformer:
             isinstance(stmt, (ClassDeclaration, FunctionDeclaration)) and stmt.is_final
             for stmt in node.body
         )
-        
+
         # Also check for final methods within class bodies
         if not has_final:
             for stmt in node.body:
@@ -103,21 +103,21 @@ class Transformer:
         """Visit interface declaration node."""
         if self.verbose:
             print(f"Transforming interface '{node.name}' with {len(node.methods)} methods")
-        
+
         extensions = f", {', '.join(node.base_interfaces)}" if node.base_interfaces else ""
 
         # In Python, interfaces are created using Protocol from typing
         self.output.append(f"class {node.name}(Protocol{extensions}):\n")
         self.indent_level += 1
-        
+
         # Class docstring
         self.output.append(self._indent(f'"""Interface for {node.name}."""\n'))
-        
+
         if not node.methods:
             self.output.append(self._indent("pass\n"))
         else:
             self.output.append("\n")  # Blank line after docstring
-            
+
             # Transform each method signature
             for i, method in enumerate(node.methods):
                 if self.verbose:
@@ -125,20 +125,20 @@ class Transformer:
                 self.visit_MethodSignature(method)
                 if i < len(node.methods) - 1:
                     self.output.append("\n")  # Add newlines between methods
-        
+
         self.indent_level -= 1
         self.output.append("\n")  # Blank line after class
 
     def visit_MethodSignature(self, node: MethodSignature):
         """Visit method signature node."""
         params_str = ", ".join(self._format_param(param) for param in node.params)
-        
+
         # Add self parameter if it's a method signature and doesn't already have one
         if not node.params or (node.params and node.params[0].name != "self"):
             params_str = "self" + (", " + params_str if params_str else "")
-            
+
         return_annotation = f" -> {node.return_type}" if node.return_type else ""
-        
+
         # Interface methods are abstract method stubs
         self.output.append(self._indent(f"def {node.name}({params_str}){return_annotation}:\n"))
         self.indent_level += 1
@@ -155,41 +155,41 @@ class Transformer:
                 print("Class is abstract")
             if node.is_final:
                 print("Class is final")
-                
+
         self.in_class = True
-        
+
         # Handle inheritance
         bases = []
         if node.bases:
             bases.extend(node.bases)
         if node.interfaces:
             bases.extend(node.interfaces)
-        
+
         # For abstract classes with no explicit bases, add ABC as a base
         if node.is_abstract and not bases:
             bases.append("ABC")
             if self.verbose:
                 print("Adding ABC as base class for abstract class")
-            
+
         base_str = f"({', '.join(bases)})" if bases else ""
-        
+
         # Add final decorator if needed
         if node.is_final:
             if self.verbose:
                 print("Adding @final decorator")
             self.output.append("@final\n")
-            
+
         # Class definition
         self.output.append(f"class {node.name}{base_str}:\n")
         self.indent_level += 1
-        
+
         # Class body
         if not node.body:
             self.output.append(self._indent("pass\n"))
         else:
             # Add docstring
             self.output.append(self._indent(f'"""{node.name} class."""\n\n'))
-            
+
             # Transform each class member
             for i, stmt in enumerate(node.body):
                 if self.verbose:
@@ -197,7 +197,7 @@ class Transformer:
                 self.visit(stmt)
                 if i < len(node.body) - 1:
                     self.output.append("\n")
-        
+
         self.indent_level -= 1
         self.in_class = False
 
@@ -211,41 +211,41 @@ class Transformer:
                 print("Method is final")
             if node.is_static:
                 print("Method is static")
-                
+
         params = node.params.copy()
-        
+
         # Add decorators
         decorators = []
-        
+
         # Static method decorator
         if node.is_static:
             decorators.append("@staticmethod")
-        
+
         # Abstract method decorator
         if node.is_abstract:
             decorators.append("@abstractmethod")
-            
+
         # Final decorator
         if node.is_final:
             decorators.append("@final")
-            
+
         for decorator in decorators:
             self.output.append(self._indent(f"{decorator}\n"))
-        
+
         # Format parameters
         params_str = ", ".join(self._format_param(param) for param in params)
-        
+
         # Add self parameter if it's a method and not static
         if self.in_class and not node.is_static:
             if not params or (params and params[0].name != "self"):
                 params_str = "self" + (", " + params_str if params_str else "")
-        
+
         return_annotation = f" -> {node.return_type}" if node.return_type else ""
-        
+
         # Function definition
         self.output.append(self._indent(f"def {node.name}({params_str}){return_annotation}:\n"))
         self.indent_level += 1
-        
+
         # Function body
         if node.is_abstract:
             # Abstract methods just need a docstring and a pass statement
@@ -257,13 +257,13 @@ class Transformer:
         else:
             # Add docstring
             self.output.append(self._indent(f'"""{node.name} {"method" if self.in_class else "function"}."""\n'))
-            
+
             # Transform function body statements
             for stmt in node.body:
                 if self.verbose:
                     print(f"Transforming function body statement: {type(stmt).__name__}")
                 self.visit(stmt)
-        
+
         self.indent_level -= 1
 
     def visit_ExpressionStatement(self, node: ExpressionStatement):
@@ -307,16 +307,16 @@ class Transformer:
         """Visit attribute expression node."""
         if self.verbose:
             print(f"Transforming attribute access: {node.attribute}")
-            
+
         # Visit the object
         output_before = len(self.output)
-        
+
         self.visit(node.object)
-        
+
         object_len = len(self.output) - output_before
         object_str = ''.join(self.output[-object_len:])
         self.output = self.output[:-object_len]
-        
+
         self.output.append(f"{object_str}.{node.attribute}")
 
     def visit_LiteralExpression(self, node: LiteralExpression):
@@ -393,24 +393,15 @@ class Transformer:
                 self.visit(stmt)
             self.indent_level -= 1
 
-    def visit_ForStatement(self, node):
+    def visit_ForStatement(self, node: ForStatement):
         """Visit for statement node."""
         if self.verbose:
             print("Transforming for statement")
+
         self.output.append(self._indent("for "))
-        output_before = len(self.output)
-        self.visit(node.target)
-        target_len = len(self.output) - output_before
-        target_str = ''.join(self.output[-target_len:])
-        self.output = self.output[:-target_len]
-        self.output.append(f"{target_str} in ")
-        output_before = len(self.output)
-        self.visit(node.iterable)
-        iter_len = len(self.output) - output_before
-        iter_str = ''.join(self.output[-iter_len:])
-        self.output = self.output[:-iter_len]
-        self.output.append(f"{iter_str}:")
+        self.output.append(f"{node.target}:")
         self.output.append("\n")
+
         self.indent_level += 1
         for stmt in node.body:
             self.visit(stmt)
@@ -465,16 +456,22 @@ class Transformer:
         # Not used directly; handled in visit_SwitchStatement
         pass
 
-    def visit_logical_expression(self, node):
+    def visit_LogicalExpression(self, node):
         """Visit logical expression node."""
         left_code = self.expr_to_str(node.left)
         right_code = self.expr_to_str(node.right)
         self.output.append(f"({left_code} {node.operator} {right_code})")
 
-    def visit_unary_expression(self, node):
+    def visit_UnaryExpression(self, node):
         """Visit unary expression node."""
         operand_code = self.expr_to_str(node.operand)
         self.output.append(f"({node.operator} {operand_code})")
+
+    def visit_BinaryExpression(self, node):
+        """Visit binary expression node."""
+        left_code = self.visit(node.left)
+        right_code = self.visit(node.right)
+        self.output.append(f"{left_code} {node.operator} {right_code}")
 
     def expr_to_str(self, expr):
         """Helper to get code for an expression node as a string."""
@@ -498,9 +495,3 @@ class Transformer:
         if param.default:
             result += f" = {param.default}"
         return result
-
-    def visit_binary_expression(self, node):
-        """Visit binary expression node."""
-        left_code = self.expr_to_str(node.left)
-        right_code = self.expr_to_str(node.right)
-        self.output.append(f"({left_code} {node.operator} {right_code})")

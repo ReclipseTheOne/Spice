@@ -2,12 +2,11 @@
 
 from typing import List, Optional, Any
 from lexer import Token, TokenType
-from lexer.follow_set import check
 from parser.ast_nodes import (
-    Module, InterfaceDeclaration, MethodSignature, Parameter, 
-    ClassDeclaration, FunctionDeclaration, ExpressionStatement, 
-    PassStatement, Expression, AssignmentExpression, IdentifierExpression, 
-    AttributeExpression, LiteralExpression, CallExpression, ReturnStatement, 
+    Module, InterfaceDeclaration, MethodSignature, Parameter,
+    ClassDeclaration, FunctionDeclaration, ExpressionStatement,
+    PassStatement, Expression, AssignmentExpression, IdentifierExpression,
+    AttributeExpression, LiteralExpression, CallExpression, ReturnStatement,
     IfStatement, ForStatement, WhileStatement, SwitchStatement, CaseClause, LogicalExpression,
     UnaryExpression, ArgumentExpression
 )
@@ -33,14 +32,12 @@ class Parser:
         # Extensions
         self.expr_parser = ExpressionParser(self)
 
-
-    # Helper methods
     def match(self, *types: TokenType) -> bool:
         """Check if current token matches any of the given types."""
         for token_type in types:
             if self.check(token_type):
                 if self.verbose:
-                    print(f"Matched token: {token_type.name}")
+                    print(f"Matched token {self.peek()} for: {', '.join([t.name for t in types])}")
                 self.advance()
                 return True
         return False
@@ -99,15 +96,14 @@ class Parser:
         return self.tokens[start:(start + size)]
 
 
-    # Parsing
     def parse(self, tokens: List[Token]) -> Module:
-        """Parse tokens into an AST."""  
+        """Parse tokens into an AST."""
         self.tokens = tokens
         self.current = 0
-             
+
         if self.verbose:
             print(f"Starting parsing with {len(tokens)} tokens")
-        
+
         statements = []
         while not self.is_at_end():
             # Skip newlines at module level
@@ -125,7 +121,13 @@ class Parser:
             print(f"Finished parsing: Generated AST with {len(statements)} top-level statements")
         return Module(body=statements)
 
-    
+
+    ##########################################
+    ################# UTILS ##################
+    ##########################################
+
+    # Pretty empty atm :p
+
     ##########################################
     ################ CLASSES #################
     ##########################################
@@ -135,7 +137,7 @@ class Parser:
     def parse_interface(self) -> InterfaceDeclaration:
         """Parse interface declaration."""
         name = self.consume(TokenType.IDENTIFIER, "Expected interface name").value
-        
+
         if self.verbose:
             print(f"Parsing interface '{name}'")
 
@@ -146,7 +148,7 @@ class Parser:
             bases.append(base)
             if self.verbose:
                 print(f"Added base interface: {base}")
-                
+
             while self.match(TokenType.COMMA):
                 base = self.consume(TokenType.IDENTIFIER, "Expected base interface").value
                 bases.append(base)
@@ -185,16 +187,16 @@ class Parser:
 
         self.consume(TokenType.RBRACE, "Expected '}' after interface body")
         return methods
-    
+
 
     def parse_class(self):
         """Parse class declaration."""
         from parser.ast_nodes import ClassDeclaration
-        
+
         # Handle modifiers
         is_abstract = False
         is_final = False
-        
+
         if self.match(TokenType.ABSTRACT):
             is_abstract = True
             if self.verbose:
@@ -203,19 +205,19 @@ class Parser:
             is_final = True
             if self.verbose:
                 print("Class is final")
-            
+
         # Consume 'class' keyword
         self.consume(TokenType.CLASS, "Expected 'class' keyword")
-        
+
         # Class name
         name = self.consume(TokenType.IDENTIFIER, "Expected class name").value
         if self.verbose:
             print(f"Parsing class '{name}'")
-            
+
         # Optional base classes and interfaces
         bases = []  # For extended classes
         interfaces = []  # For implemented interfaces
-        
+
         if self.match(TokenType.LPAREN):
             if self.verbose:
                 print("Parsing Python-style inheritance")
@@ -239,7 +241,7 @@ class Parser:
             bases.append(base)
             if self.verbose:
                 print(f"Added base class: {base}")
-        
+
         # Handle implements keyword for interfaces
         if self.match(TokenType.IMPLEMENTS):
             if self.verbose:
@@ -254,20 +256,20 @@ class Parser:
                 interfaces.append(interface)
                 if self.verbose:
                     print(f"Added implemented interface: {interface}")
-        
+
         # Class body
         self.consume(TokenType.LBRACE, "Expected '{' after class declaration")
-        
+
         # Parse class body
         if self.verbose:
             print("Parsing class body")
         body = self.parse_class_body()
-        
+
         self.consume(TokenType.RBRACE, "Expected '}' after class body")
-        
+
         if self.verbose:
             print(f"Completed class '{name}' with {len(body)} members")
-        
+
         return ClassDeclaration(
             name=name,
             body=body,
@@ -281,18 +283,18 @@ class Parser:
     def parse_class_body(self):
         """Parse class body statements."""
         body = []
-        
+
         while not self.check(TokenType.RBRACE) and not self.is_at_end():
             # Skip newlines
             if self.check(TokenType.NEWLINE):
                 self.advance()
                 continue
-                
+
             # Skip comments
             if self.check(TokenType.COMMENT):
                 self.advance()
                 continue
-            
+
             # Parse class member
             if self.verbose:
                 print("Parsing class member")
@@ -301,19 +303,19 @@ class Parser:
                 if self.verbose:
                     print(f"Added class member: {type(stmt).__name__}")
                 body.append(stmt)
-        
+
         return body
 
 
     def parse_class_member(self, is_interface: bool = False):
         """Parse a class member (method or field)."""
         from parser.ast_nodes import FunctionDeclaration
-        
+
         # Check for static modifier
         is_static = False
         is_abstract = False
         is_final = False
-        
+
         if self.match(TokenType.STATIC):
             is_static = True
             if self.verbose:
@@ -326,22 +328,22 @@ class Parser:
             is_final = True
             if self.verbose:
                 print("Method is final")
-        
+
         # Method declaration
         if self.match(TokenType.DEF):
             name = self.consume(TokenType.IDENTIFIER, "Expected method name").value
             if self.verbose:
                 print(f"Parsing method '{name}'")
-            
+
             # Parameters
             self.consume(TokenType.LPAREN, "Expected '(' after method name")
             params = self.parse_parameters()
             self.consume(TokenType.RPAREN, "Expected ')' after parameters")
-            
+
             # Return type
             return_type = None
             if self.match(TokenType.ARROW):
-                # Handle `-> return_type` syntax  
+                # Handle `-> return_type` syntax
                 if self.check(TokenType.IDENTIFIER):
                     return_type = self.advance().value
                 elif self.check(TokenType.NONE):
@@ -350,7 +352,7 @@ class Parser:
                     raise ParseError(f"Expected return type after '->' at line {self.peek().line}")
                 if self.verbose:
                     print(f"Method '{name}' has return type: {return_type}")
-            
+
             # Method body - abstract methods don't have bodies
             body = []
             if is_abstract or is_interface:
@@ -368,7 +370,7 @@ class Parser:
                 self.consume(TokenType.RBRACE, "Expected '}' after method body")
                 if self.verbose:
                     print(f"Completed body of method '{name}'")
-            
+
             return FunctionDeclaration(
                 name=name,
                 params=params,
@@ -378,7 +380,7 @@ class Parser:
                 is_abstract=is_abstract,
                 is_final=is_final
             )
-        
+
         # Field declaration or other statements
         else:
             # Try to parse as a simple statement (e.g., assignment, expression, etc.)
@@ -391,13 +393,13 @@ class Parser:
     ##########################################
     ############### FUNCTIONS ################
     ##########################################
-    
+
     # Any methods handling function declarations, arguments, parameters etc.
 
     def parse_method_signature(self) -> MethodSignature:
         """Parse a method signature."""
         name = self.consume(TokenType.IDENTIFIER, "Expected method name").value
-        
+
         if self.verbose:
             print(f"Parsing method signature '{name}'")
 
@@ -416,7 +418,7 @@ class Parser:
                 return_type = self.advance().value
             else:
                 raise ParseError(f"Expected return type at line {self.peek().line}")
-            
+
             if self.verbose:
                 print(f"Method '{name}' has return type: {return_type}")
 
@@ -434,14 +436,14 @@ class Parser:
             param = self.parse_parameter()
             params.append(param)
             if self.verbose:
-                print(f"Added parameter: {param.name}" + 
+                print(f"Added parameter: {param.name}" +
                     (f" with type {param.type_annotation}" if param.type_annotation else ""))
-                
+
             while self.match(TokenType.COMMA):
                 param = self.parse_parameter()
                 params.append(param)
                 if self.verbose:
-                    print(f"Added parameter: {param.name}" + 
+                    print(f"Added parameter: {param.name}" +
                         (f" with type {param.type_annotation}" if param.type_annotation else ""))
 
         if self.verbose:
@@ -452,7 +454,7 @@ class Parser:
     def parse_parameter(self) -> Parameter:
         """Parse a single parameter."""
         name = self.consume(TokenType.IDENTIFIER, "Expected parameter name").value
-        
+
         # Type annotation
         type_annotation = None
         if self.match(TokenType.COLON):
@@ -473,18 +475,18 @@ class Parser:
                 print(f"Parameter {name} has default value: {default}")
 
         return Parameter(name, type_annotation, default)
-    
+
 
     def parse_method_body(self):
         """Parse method body statements."""
         body = []
-        
+
         while not self.check(TokenType.RBRACE) and not self.is_at_end():
             # Skip newlines
             if self.check(TokenType.NEWLINE):
                 self.advance()
                 continue
-                
+
             # Skip comments
             if self.check(TokenType.COMMENT):
                 self.advance()
@@ -498,25 +500,25 @@ class Parser:
                 if self.verbose:
                     print(f"Added statement to method body: {type(stmt).__name__}")
                 body.append(stmt)
-        
+
         if self.verbose:
             print(f"Method body contains {len(body)} statements")
         return body
-    
+
 
     def parse_function(self):
         """Parse function declaration."""
         from parser.ast_nodes import FunctionDeclaration
-        
+
         name = self.consume(TokenType.IDENTIFIER, "Expected function name").value
         if self.verbose:
             print(f"Parsing function '{name}'")
-        
+
         # Parameters
         self.consume(TokenType.LPAREN, "Expected '(' after function name")
         params = self.parse_parameters()
         self.consume(TokenType.RPAREN, "Expected ')' after parameters")
-        
+
         # Return type
         return_type = None
         if self.match(TokenType.COLON):
@@ -539,7 +541,7 @@ class Parser:
                 raise ParseError(f"Expected return type after '->' at line {self.peek().line}")
             if self.verbose:
                 print(f"Function '{name}' has return type: {return_type}")
-        
+
         # Function body
         self.consume(TokenType.LBRACE, "Expected '{' after function signature")
         if self.verbose:
@@ -548,7 +550,7 @@ class Parser:
         self.consume(TokenType.RBRACE, "Expected '}' after function body")
         if self.verbose:
             print(f"Completed body of function '{name}'")
-        
+
         return FunctionDeclaration(
             name=name,
             params=params,
@@ -557,18 +559,18 @@ class Parser:
             is_static=False,
             is_abstract=False,
             is_final=False
-        )    
-    
-    
+        )
+
+
     ##########################################
     ############## EXPRESSIONS ###############
     ##########################################
 
-    def parse_statement(self):
+    def parse_statement(self, context="general"):
         """Parse a statement."""
         if self.verbose:
             print(f"Parsing statement at token: {self.peek().type.name}")
-            
+
         # Skip comments
         if self.check(TokenType.COMMENT):
             self.advance()
@@ -598,7 +600,7 @@ class Parser:
                 print("Parsing return statement at top-level")
             value = None
             if not self.check(TokenType.SEMICOLON, TokenType.NEWLINE, TokenType.RBRACE):
-                value = self.parse_expression()
+                value = self.parse_expression(context)
             has_semicolon = self.match(TokenType.SEMICOLON)
             if self.verbose:
                 print(f"Parsed return statement with value: {value}")
@@ -609,35 +611,34 @@ class Parser:
         if self.verbose:
             print("Parsing expression statement")
         return self.parse_expression_statement()
-    
 
-    def parse_expression(self) -> Optional[Expression]:
+    def parse_expression(self, context="general") -> Optional[Expression]:
         """Parse an expression using the clean expression parser."""
         if self.verbose:
             print(f"Parsing expression at token: {self.peek().type.name}")
-        
+
         expr = self.expr_parser.parse_expression()
-        
+
         if expr is None and self.verbose:
             print(f"Could not parse expression from token: {self.peek().type.name}")
-        
+
         return expr
 
-    def parse_expression_statement(self) -> Optional[ExpressionStatement]:
+    def parse_expression_statement(self, context="general") -> Optional[ExpressionStatement]:
         """Parse expression statement."""
         if self.verbose:
             print("Parsing expression statement")
-        
-        expr = self.parse_expression()
-        
+
+        expr = self.parse_expression(context=context)
+
         if expr is None:
             return None
-            
+
         has_semicolon = self.match(TokenType.SEMICOLON)
-        
+
         if self.verbose and has_semicolon:
             print("Expression has semicolon")
-        
+
         return ExpressionStatement(expression=expr, has_semicolon=has_semicolon)
 
     def parse_simple_statement(self):
@@ -648,7 +649,7 @@ class Parser:
             if self.verbose:
                 print("Parsed pass statement")
             return PassStatement(has_semicolon=has_semicolon)
-        
+
         # Return statement
         if self.match(TokenType.RETURN):
             if self.verbose:
@@ -658,49 +659,49 @@ class Parser:
                 value = self.parse_expression()
             has_semicolon = self.match(TokenType.SEMICOLON)
             return ReturnStatement(value=value, has_semicolon=has_semicolon)
-        
+
         # If statement
         if self.match(TokenType.IF):
             return self.parse_if_statement()
-        
+
         # While statement
         if self.match(TokenType.WHILE):
             return self.parse_while_statement()
-        
+
         # For statement
         if self.match(TokenType.FOR):
             return self.parse_for_statement()
-        
+
         # Switch statement
         if self.match(TokenType.SWITCH):
             return self.parse_switch_statement()
-        
+
         # Expression statement
         expr = self.parse_expression()
         if expr:
             has_semicolon = self.match(TokenType.SEMICOLON)
             return ExpressionStatement(expression=expr, has_semicolon=has_semicolon)
-        
+
         return None
 
     def parse_if_statement(self) -> IfStatement:
         """Parse if statement with clean condition parsing."""
         if self.verbose:
             print("Parsing if statement")
-        
-        # Parse condition (no special logic parsing needed anymore!)
-        condition = self.parse_expression()
+
+        # Parse condition
+        condition = self.parse_expression(context="condition")
         if condition is None:
             raise ParseError("Expected condition after 'if'")
-        
-        # Validate it's not an assignment (optional)
+
+        # Validate it's not an assignment
         from parser.ast_nodes import AssignmentExpression
         if isinstance(condition, AssignmentExpression):
             raise ParseError("Assignment expressions are not allowed as 'if' conditions")
-        
+
         self.consume(TokenType.LBRACE, "Expected '{' after if condition")
         then_body = self.parse_block()
-        
+
         else_body = []
         if self.match(TokenType.ELSE):
             if self.check(TokenType.IF):
@@ -709,85 +710,79 @@ class Parser:
             else:
                 self.consume(TokenType.LBRACE, "Expected '{' after 'else'")
                 else_body = self.parse_block()
-        
+
         return IfStatement(condition=condition, then_body=then_body, else_body=else_body)
 
     def parse_while_statement(self) -> WhileStatement:
         """Parse while statement."""
         if self.verbose:
             print("Parsing while statement")
-        
+
         # Optional parentheses
         has_parens = self.match(TokenType.LPAREN)
-        
-        condition = self.parse_expression()
+
+        condition = self.parse_expression(context="condition")
         if condition is None:
             raise ParseError("Expected condition after 'while'")
-        
+
         if has_parens:
             self.consume(TokenType.RPAREN, "Expected ')' after while condition")
-        
+
         # Validate it's not an assignment
         from parser.ast_nodes import AssignmentExpression
         if isinstance(condition, AssignmentExpression):
             raise ParseError("Assignment expressions are not allowed as 'while' conditions")
-        
+
         self.consume(TokenType.LBRACE, "Expected '{' after while condition")
         body = self.parse_block()
-        
+
         return WhileStatement(condition=condition, body=body)
 
     def parse_for_statement(self) -> ForStatement:
         """Parse for statement."""
         if self.verbose:
             print("Parsing for statement")
-        
+
         # Optional parentheses
         has_parens = self.match(TokenType.LPAREN)
-        
+
         target = self.parse_expression()
         if target is None:
             raise ParseError("Expected target in for statement")
-        
-        self.consume(TokenType.IN, "Expected 'in' in for statement")
-        
-        iterable = self.parse_expression()
-        if iterable is None:
-            raise ParseError("Expected iterable in for statement")
-        
+
         if has_parens:
             self.consume(TokenType.RPAREN, "Expected ')' after for header")
-        
+
         self.consume(TokenType.LBRACE, "Expected '{' after for header")
         body = self.parse_block()
-        
-        return ForStatement(target=target, iterable=iterable, body=body)
+
+        return ForStatement(target=target, body=body)
 
     def parse_switch_statement(self) -> SwitchStatement:
         """Parse switch statement."""
         if self.verbose:
             print("Parsing switch statement")
-        
+
         self.consume(TokenType.LPAREN, "Expected '(' after 'switch'")
-        
+
         expr = self.parse_expression()
         if expr is None:
             raise ParseError("Expected expression after 'switch('")
-        
+
         self.consume(TokenType.RPAREN, "Expected ')' after switch expression")
         self.consume(TokenType.LBRACE, "Expected '{' after switch header")
-        
+
         cases = []
         default = []
-        
+
         while not self.check(TokenType.RBRACE) and not self.is_at_end():
             if self.match(TokenType.CASE):
                 case_value = self.parse_expression()
                 if case_value is None:
                     raise ParseError("Expected value after 'case'")
-                
+
                 self.consume(TokenType.COLON, "Expected ':' after case value")
-                
+
                 case_body = []
                 while not self.check(TokenType.CASE, TokenType.DEFAULT, TokenType.RBRACE):
                     if self.match(TokenType.NEWLINE):
@@ -795,12 +790,12 @@ class Parser:
                     stmt = self.parse_simple_statement()
                     if stmt:
                         case_body.append(stmt)
-                
+
                 cases.append(CaseClause(value=case_value, body=case_body))
-                
+
             elif self.match(TokenType.DEFAULT):
                 self.consume(TokenType.COLON, "Expected ':' after 'default'")
-                
+
                 while not self.check(TokenType.CASE, TokenType.RBRACE):
                     if self.match(TokenType.NEWLINE):
                         continue
@@ -810,24 +805,24 @@ class Parser:
             else:
                 # Skip unknown tokens
                 self.advance()
-        
+
         self.consume(TokenType.RBRACE, "Expected '}' after switch block")
-        
+
         return SwitchStatement(expression=expr, cases=cases, default=default)
 
     def parse_block(self) -> List[Any]:
         """Parse a block of statements enclosed in braces."""
         body = []
-        
+
         while not self.check(TokenType.RBRACE) and not self.is_at_end():
             if self.match(TokenType.NEWLINE):
                 continue
             if self.match(TokenType.COMMENT):
                 continue
-            
+
             stmt = self.parse_simple_statement()
             if stmt:
                 body.append(stmt)
-        
+
         self.consume(TokenType.RBRACE, "Expected '}' after block")
         return body

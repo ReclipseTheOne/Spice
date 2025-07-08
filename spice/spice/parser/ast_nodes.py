@@ -139,7 +139,6 @@ class IfStatement(ASTNode):
 class ForStatement(ASTNode):
     """For statement."""
     target: "Expression"
-    iterable: "Expression"
     body: List[ASTNode]
 
     def accept(self, visitor):
@@ -232,7 +231,7 @@ class CallExpression(Expression):
 
     def accept(self, visitor):
         return visitor.visit_CallExpression(self)
-    
+
 
 @dataclass
 class ArgumentExpression(Expression):
@@ -274,7 +273,7 @@ class BinaryExpression(Expression):
 
     def accept(self, visitor):
         return visitor.visit_binary_expression(self)
-    
+
 
 @dataclass
 class LambdaExpression(Expression):

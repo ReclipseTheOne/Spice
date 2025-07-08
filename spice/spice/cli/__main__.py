@@ -25,23 +25,23 @@ def typed(func):
     def wrapper(*args, **kwargs):
         # Get type hints
         hints = get_type_hints(func)
-        
+
         # Check argument types
         for i, (arg_name, arg_value) in enumerate(zip(func.__code__.co_varnames, args)):
             if arg_name in hints and arg_name != 'return':
                 expected_type = hints[arg_name]
                 if not isinstance(arg_value, expected_type):
                     raise TypeError(f"Argument '{arg_name}' expected {expected_type.__name__}, got {type(arg_value).__name__}")
-        
+
         # Call original function
         result = func(*args, **kwargs)
-        
+
         # Check return type
         if 'return' in hints:
             expected_return = hints['return']
             if expected_return is not type(None) and not isinstance(result, expected_return):
                 raise TypeError(f"Return value expected {expected_return.__name__}, got {type(result).__name__}")
-        
+
         return result
     return wrapper
 
@@ -55,7 +55,7 @@ def typed(func):
 @click.option('-c', '--check', is_flag=True, help='Check syntax without generating output')
 @click.option('-w', '--watch', is_flag=True, help='Watch file for changes')
 @click.option('-v', '--verbose', is_flag=True, help='Verbose output')
-@click.option('--type-check', type=click.Choice(['none', 'warnings', 'strict']), 
+@click.option('--type-check', type=click.Choice(['none', 'warnings', 'strict']),
               default='none', help='Type checking level (default: none)')
 @click.option('--runtime-checks', is_flag=True, help='Add runtime type checking to output')
 @click.version_option(version='0.1.0', prog_name='spyc')
@@ -101,7 +101,7 @@ def compile_file(source_path: Path, output_path: Path, check_only: bool, verbose
         click.echo("📖 Step 1/6: Reading source file...")
     with open(source_path, 'r', encoding='utf-8') as f:
         source_code = f.read()
-    
+
     if verbose:
         lines = source_code.count('\n') + 1
         chars = len(source_code)
@@ -113,7 +113,7 @@ def compile_file(source_path: Path, output_path: Path, check_only: bool, verbose
     lexer = Lexer(verbose=verbose)
     tokens = lexer.tokenize(source_code)
 
-    if len(lexer.errors) is not 0:
+    if len(lexer.errors) != 0:
         click.echo("❌ Lexical errors found:")
         for error in lexer.errors:
             click.echo(f"   - {error}")
@@ -121,20 +121,20 @@ def compile_file(source_path: Path, output_path: Path, check_only: bool, verbose
     else:
         if verbose:
             click.echo("   ✓ Lexical analysis complete, no errors found")
-    
+
     if verbose:
         token_count = len(tokens) if hasattr(tokens, '__len__') else "unknown"
         click.echo(f"   ✓ Generated {token_count} tokens")
 
     if verbose:
         click.echo("🌳 Step 3/6: Syntax analysis (parsing)...")
-        
+
     parser = Parser(verbose=verbose)
     ast = parser.parse(tokens)
 
     if verbose:
         click.echo("   ✓ Built Abstract Syntax Tree (AST)")
-    
+
     if check_only:
         if verbose:
             click.echo("✅ Step 4/6: Syntax validation complete")
@@ -160,11 +160,11 @@ def compile_file(source_path: Path, output_path: Path, check_only: bool, verbose
         click.echo("🔄 Step 5/6: Code transformation (AST → Python)...")
     transformer = Transformer(verbose=verbose)
     python_code = transformer.transform(ast)
-    
+
     if verbose:
         python_lines = python_code.count('\n') + 1
         click.echo(f"   ✓ Generated {python_lines} lines of Python code")
-    
+
     # Add runtime type checks if requested
     if runtime_checks:
         if verbose:
