@@ -1,16 +1,18 @@
 """Restructured expression parsing methods for the Spy parser."""
 
 from typing import Optional, List
-from lexer import Token, TokenType
+from lexer import TokenType
 from parser.ast_nodes import (
     Expression, AssignmentExpression, BinaryExpression, UnaryExpression,
     LogicalExpression, CallExpression, AttributeExpression,
-    IdentifierExpression, LiteralExpression, ArgumentExpression
+    IdentifierExpression, LiteralExpression, ArgumentExpression,
+    SubscriptExpression, SliceExpression
 )
 from errors import ParserError
 
 
 class ExpressionParser:
+    from parser.parser import Parser
     """
     Clean expression parser using recursive descent with explicit precedence levels.
 
@@ -29,7 +31,7 @@ class ExpressionParser:
     12. Primary (literals, identifiers, parentheses)
     """
 
-    def __init__(self, parser):
+    def __init__(self, parser: Parser):
         self.parser = parser  # Reference to main parser for helper methods
 
     # Main entry point
@@ -78,7 +80,7 @@ class ExpressionParser:
         """Parse logical OR expressions."""
         expr = self.parse_logical_and(context=context)
 
-        while self.parser.match(TokenType.OR):
+        while self.parser.match(TokenType.OR, advance_at_newline=True):
             op = self.parser.previous().value
             right = self.parse_logical_and(context=context)
             if right is None:
@@ -92,7 +94,7 @@ class ExpressionParser:
         """Parse logical AND expressions."""
         expr = self.parse_membership(context=context)
 
-        while self.parser.match(TokenType.AND):
+        while self.parser.match(TokenType.AND, advance_at_newline=True):
             op = self.parser.previous().value
             right = self.parse_membership(context=context)
             if right is None:
@@ -252,6 +254,9 @@ class ExpressionParser:
 
             # alpha.beta
             if self.parser.match(TokenType.DOT):
+                if self.parser.verbose:
+                    print("Parsing postfix .")
+
                 if not self.parser.check(TokenType.IDENTIFIER):
                     raise ParserError("Expected attribute name after '.'")
                 attr = self.parser.advance().value
@@ -259,6 +264,9 @@ class ExpressionParser:
 
             # alpha()
             elif self.parser.match(TokenType.LPAREN):
+                if self.parser.verbose:
+                    print("Parsing postfix ()")
+
                 # Function/method call
                 args = self.parse_arguments()
                 self.parser.consume(TokenType.RPAREN, "Expected ')' after arguments")
@@ -266,10 +274,13 @@ class ExpressionParser:
 
             # alpha[]
             elif self.parser.match(TokenType.LBRACKET):
-                # Subscript (array/dict access) - not implemented yet
-                # For now, just consume and skip
-                self.parser.advance()  # Skip the index
+                if self.parser.verbose:
+                    print("Parsing postfix []")
+
+                # Parse the index/slice expression
+                index_expr = self.parse_subscript_or_slice()
                 self.parser.consume(TokenType.RBRACKET, "Expected ']'")
+                expr = SubscriptExpression(object=expr, index=index_expr)
 
             else:
                 break
@@ -341,6 +352,9 @@ class ExpressionParser:
 
                         if not self.parser.match(TokenType.COMMA):
                             break
+
+                if (self.parser.check(TokenType.NEWLINE)):
+                    self.parser.advance()
 
                 self.parser.consume(TokenType.RBRACE, "Expected '}' after set/dict elements")
 
@@ -465,7 +479,49 @@ class ExpressionParser:
         # Implementation depends on your AST structure
         # This is a placeholder
         raise NotImplementedError("Lambda parsing not implemented yet")
+    def parse_subscript_or_slice(self) -> Expression:
+        """Parse subscript index or slice notation [start:stop:step]."""
+        # Check for empty subscript
+        if self.parser.check(TokenType.RBRACKET):
+            raise ParserError("Empty subscript not allowed")
 
+        # Parse the first expression (could be start of slice or single index)
+        first_expr = None
+        if not self.parser.check(TokenType.COLON):
+            first_expr = self.parse_expression()
+            if first_expr is None:
+                raise ParserError("Expected expression in subscript")
+
+        # Check if this is a slice (contains :)
+        if self.parser.check(TokenType.COLON):
+            # This is a slice expression
+            start = first_expr
+            stop = None
+            step = None
+
+            # Consume first colon
+            self.parser.advance()
+
+            # Parse stop (optional)
+            if not self.parser.check(TokenType.COLON) and not self.parser.check(TokenType.RBRACKET):
+                stop = self.parse_expression()
+                if stop is None:
+                    raise ParserError("Expected expression for slice stop")
+
+            # Check for second colon (step)
+            if self.parser.match(TokenType.COLON):
+                # Parse step (optional)
+                if not self.parser.check(TokenType.RBRACKET):
+                    step = self.parse_expression()
+                    if step is None:
+                        raise ParserError("Expected expression for slice step")
+
+            return SliceExpression(start=start, stop=stop, step=step)
+        else:
+            # This is a simple index
+            if first_expr is None:
+                raise ParserError("Expected expression in subscript")
+            return first_expr
 
     # Helper Methods
     def _is_dict_entry(self) -> bool:
@@ -473,11 +529,27 @@ class ExpressionParser:
         # Simple lookahead for common dict patterns
         # Check for: STRING : or IDENTIFIER :
         current_pos = self.parser.current
+        if self.parser.tokens[current_pos].type == TokenType.NEWLINE:
+            current_pos += 1  # Skip newline if present
+            self.parser.advance()
 
-        # Look for string literal followed by colon
-        if (current_pos < len(self.parser.tokens) - 1 and
-            self.parser.tokens[current_pos].type in [TokenType.STRING, TokenType.IDENTIFIER] and
-            self.parser.tokens[current_pos + 1].type == TokenType.COLON):
-            return True
+        flag1: bool = current_pos < len(self.parser.tokens) - 1
+        flag2: bool = self.parser.tokens[current_pos].type in [TokenType.STRING, TokenType.IDENTIFIER]
+        flag3: bool = self.parser.tokens[current_pos + 1].type == TokenType.COLON
 
-        return False
+        if not flag1:
+            if self.parser.verbose:
+                print("Not enough tokens to form a dictionary entry")
+            return False
+
+        if not flag2:
+            if self.parser.verbose:
+                print("Next token is not a valid dictionary key: ", self.parser.tokens[current_pos])
+            return False
+
+        if not flag3:
+            if self.parser.verbose:
+                print("Next token is not a colon after key: ", self.parser.tokens[current_pos + 1])
+            return False
+
+        return True

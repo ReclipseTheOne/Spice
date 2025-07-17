@@ -3,18 +3,18 @@
 import pytest
 from lexer import Lexer, TokenType
 from testutils import (
-    assert_contains_all, assert_count, log_test_start, 
+    assert_contains_all, assert_count, log_test_start,
     log_test_result, safe_assert
 )
 
 
 class TestLexer:
     """Test lexer functionality."""
-    
+
     def test_keywords(self):
         """Test tokenization of Spy keywords."""
         source = "interface abstract final static class def"
-        
+
         log_test_start("test_keywords", source)
         lexer = Lexer()
         tokens = lexer.tokenize(source)
@@ -40,7 +40,7 @@ class TestLexer:
             f"Expected {len(expected_types)} tokens, got {len(tokens)}",
             f"Tokens: {[t.type.name for t in tokens]}"
         )
-        
+
         for i, (token, expected_type) in enumerate(zip(tokens, expected_types)):
             safe_assert(
                 token.type == expected_type,
@@ -53,7 +53,7 @@ class TestLexer:
         source = """interface Drawable {
     def draw() -> None;
 }"""
-        
+
         log_test_start("test_interface_declaration", source)
         lexer = Lexer()
         tokens = lexer.tokenize(source)
@@ -80,7 +80,7 @@ class TestLexer:
     def test_numbers_and_strings(self):
         """Test number and string tokenization."""
         source = '42 3.14 "hello" \'world\''
-        
+
         log_test_start("test_numbers_and_strings", source)
         lexer = Lexer()
         tokens = lexer.tokenize(source)
@@ -100,7 +100,7 @@ class TestLexer:
     def test_operators(self):
         """Test operator tokenization."""
         source = "+ - * / == != <= >= = += -="
-        
+
         log_test_start("test_operators", source)
         lexer = Lexer()
         tokens = lexer.tokenize(source)
@@ -141,7 +141,7 @@ class TestLexer:
         """Test comment handling."""
         source = """# This is a comment
 x = 5  # inline comment"""
-        
+
         log_test_start("test_comments", source)
         lexer = Lexer()
         tokens = lexer.tokenize(source)
@@ -169,7 +169,7 @@ x = 5  # inline comment"""
         source = """class Example:
     def method(self):
         return 42"""
-        
+
         log_test_start("test_multiline_code", source)
         lexer = Lexer()
         tokens = lexer.tokenize(source)
@@ -196,7 +196,7 @@ x = 5  # inline comment"""
     def test_error_on_invalid_character(self):
         """Test error handling for invalid characters."""
         source = "valid @ invalid"
-        
+
         log_test_start("test_error_on_invalid_character", source)
         lexer = Lexer()
 

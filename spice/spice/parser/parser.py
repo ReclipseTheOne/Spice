@@ -4,16 +4,11 @@ from typing import List, Optional, Any
 from lexer import Token, TokenType
 from parser.ast_nodes import (
     Module, InterfaceDeclaration, MethodSignature, Parameter,
-    ClassDeclaration, FunctionDeclaration, ExpressionStatement,
-    PassStatement, Expression, AssignmentExpression, IdentifierExpression,
-    AttributeExpression, LiteralExpression, CallExpression, ReturnStatement,
-    IfStatement, ForStatement, WhileStatement, SwitchStatement, CaseClause, LogicalExpression,
-    UnaryExpression, ArgumentExpression, RaiseStatement, ImportStatement
+    ExpressionStatement, PassStatement, Expression, ReturnStatement,
+    IfStatement, ForStatement, WhileStatement, SwitchStatement, CaseClause,
+    RaiseStatement, ImportStatement
 )
 from errors import SpiceError
-import copy
-
-from parser.expression_parser import ExpressionParser
 
 
 class ParseError(SpiceError):
@@ -30,10 +25,16 @@ class Parser:
         self.current = 0
 
         # Extensions
+        from parser.expression_parser import ExpressionParser
         self.expr_parser = ExpressionParser(self)
 
-    def match(self, *types: TokenType) -> bool:
+    def match(self, *types: TokenType, advance_at_newline: bool = False) -> bool:
         """Check if current token matches any of the given types."""
+        if advance_at_newline and self.check(TokenType.NEWLINE):
+            if self.verbose:
+                print("Skipped NewLine token on match.")
+            self.advance()
+
         for token_type in types:
             if self.check(token_type):
                 if self.verbose:

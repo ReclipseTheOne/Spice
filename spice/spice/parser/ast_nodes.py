@@ -317,3 +317,24 @@ class DictEntry(Expression):
 
     def accept(self, visitor):
         return visitor.visit_dict_entry(self)
+
+
+@dataclass
+class SubscriptExpression(Expression):
+    """Subscript expression: object[index] or object[slice]."""
+    object: Expression
+    index: Expression  # Can be a simple expression or SliceExpression
+
+    def accept(self, visitor):
+        return visitor.visit_subscript_expression(self)
+
+
+@dataclass
+class SliceExpression(Expression):
+    """Slice expression: start:stop:step."""
+    start: Optional[Expression] = None
+    stop: Optional[Expression] = None
+    step: Optional[Expression] = None
+
+    def accept(self, visitor):
+        return visitor.visit_slice_expression(self)

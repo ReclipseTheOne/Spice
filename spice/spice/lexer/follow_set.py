@@ -346,6 +346,11 @@ FOLLOW_SET = {
         TokenType.LPAREN, TokenType.NOT
     },
 
+    TokenType.OR: {
+        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.TRUE, TokenType.FALSE,
+        TokenType.LPAREN, TokenType.NOT
+    },
+
     # ... not alpha:
     # ... not 1 ...
     # ... not "string" ...

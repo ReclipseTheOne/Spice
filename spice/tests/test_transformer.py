@@ -4,7 +4,7 @@ from lexer import Lexer
 from parser import Parser
 from transformer import Transformer
 from testutils import (
-    presentIn, assert_contains_all, assert_count, 
+    presentIn, assert_contains_all, assert_count,
     log_test_start, log_test_result, debug_diff, safe_assert,
     assert_lacking
 )
@@ -12,18 +12,18 @@ from testutils import (
 
 class TestTransformer:
     """Test transformer functionality."""
-    
+
     def transform_source(self, source: str) -> str:
         """Helper to transform source code."""
         try:
             lexer = Lexer()
             tokens = lexer.tokenize(source)
-            
+
             # Log tokenization for debugging
             print(f"🔍 Tokenized {len(tokens)} tokens:", flush=True)
             for i, token in enumerate(tokens):
                 print(f"   {i:2}: {token.type.name:15} = {repr(token.value)}", flush=True)
-            
+
             parser = Parser()
             ast = parser.parse(tokens)
             transformer = Transformer()
@@ -136,7 +136,7 @@ class TestTransformer:
         """Test abstract class transformation."""
         source = """abstract class Animal {
     abstract def make_sound() -> str;
-    
+
     def eat() -> None {
         pass;
     }
@@ -179,7 +179,7 @@ class TestTransformer:
     static def helper() -> str {
         pass;
     }
-    
+
     def instance_method() -> None {
         pass;
     }
@@ -234,7 +234,7 @@ class Shape implements Drawable, Colorable {
     def draw() -> None {
         pass;
     }
-    
+
     def set_color(self, color: str) -> None {
         pass;
     }
@@ -243,7 +243,7 @@ class Shape implements Drawable, Colorable {
         log_test_start("test_implements_interfaces", source)
         result = self.transform_source(source)
         log_test_result("test_implements_interfaces", result)
-        
+
         assert_contains_all(result, [
             "from typing import Protocol",
             "class Drawable(Protocol):",
@@ -267,7 +267,7 @@ class Rectangle extends Shape implements Drawable {
     def area(self) -> float {
         pass;
     }
-    
+
     def draw(self) -> None {
         pass;
     }
@@ -294,7 +294,7 @@ class Rectangle extends Shape implements Drawable {
     final def get_species() -> str {
         pass;
     }
-    
+
     def make_sound() -> str {
         pass;
     }
@@ -319,11 +319,11 @@ class Rectangle extends Shape implements Drawable {
 
 abstract class Shape {
     abstract def area() -> float;
-    
+
     final def describe() -> str {
         pass;
     }
-    
+
     static def get_shape_count() -> int {
         pass;
     }
@@ -333,11 +333,11 @@ final class Circle extends Shape implements Drawable {
     def area(self) -> float {
         pass;
     }
-    
+
     def draw(self) -> None {
         pass;
     }
-    
+
     static def create_unit_circle() -> None {
         pass;
     }
@@ -356,7 +356,7 @@ final class Circle extends Shape implements Drawable {
             "@final",
             "class Circle(Shape, Drawable):",
             "@abstractmethod",
-            "@staticmethod", 
+            "@staticmethod",
             "@final"
         ], "complex class hierarchy transformation")
 
@@ -380,7 +380,7 @@ class MyClass {
     def method() -> None {
         pass;
     }
-    
+
     static def static_method() -> None {
         pass;
     }
