@@ -148,8 +148,6 @@ class Lexer:
             lexer_log.info(f"Processing {len(lines)} lines of code")
 
         for line_num, line in enumerate(lines, 1):
-            if self.verbose and (line_num == 1 or line_num % 100 == 0 or line_num == len(lines)):
-                lexer_log.info(f"Tokenizing line {line_num}/{len(lines)}")
             self._tokenize_line(line, line_num, tokens)
 
         # Add EOF token
