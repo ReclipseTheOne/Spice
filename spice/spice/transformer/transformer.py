@@ -8,7 +8,7 @@ from parser import (
     LiteralExpression, CallExpression, ForStatement, WhileStatement,
     BinaryExpression, ReturnStatement, IfStatement, SwitchStatement,
     CaseClause, LogicalExpression, UnaryExpression, RaiseStatement,
-    ImportStatement, DictEntry
+    ImportStatement, DictEntry, SubscriptExpression, ComprehensionExpression
 )
 
 
@@ -348,11 +348,32 @@ class Transformer:
 
         if node.value is None:
             self.output.append("None")
+        elif node.literal_type == 'tuple':
+            # Handle tuple literals
+            self.output.append("(")
+            for i, element in enumerate(node.value):
+                if i > 0:
+                    self.output.append(", ")
+                # Visit each element to get its proper code representation
+                self.visit(element)
+            # Add trailing comma for single-element tuples
+            if len(node.value) == 1:
+                self.output.append(",")
+            self.output.append(")")
         elif node.literal_type == 'fstring':
-            # Emit as Python f-string (assume already valid)
-            self.output.append(f"f{repr(node.value)}")
+            # For f-strings, emit them directly without repr()
+            content = str(node.value)
+
+            # Remove quotes if they were included in the value
+            if len(content) >= 2:
+                if (content.startswith('"') and content.endswith('"')) or \
+                (content.startswith("'") and content.endswith("'")):
+                    content = content[1:-1]
+
+            # Properly format as f-string
+            self.output.append(f'f"{content}"')
         elif node.literal_type == 'string':
-            # String literals need quotes
+            # Regular strings need quotes
             self.output.append(repr(node.value))
         elif node.literal_type == 'list':
             # Handle list literals containing AST nodes
@@ -383,8 +404,11 @@ class Transformer:
                 # entry should be a DictEntry node
                 self.visit(entry)
             self.output.append("}")
+        elif node.literal_type == 'boolean':
+            # Output Python boolean literals
+            self.output.append('True' if node.value else 'False')
         else:
-            # For simple literals (numbers, booleans, etc.)
+            # For simple literals (numbers, none, etc.)
             self.output.append(str(node.value))
 
 
@@ -600,6 +624,65 @@ class Transformer:
 
         # Output key: value
         self.output.append(f"{key_str}: {value_str}")
+
+    def visit_SubscriptExpression(self, node: SubscriptExpression):
+        """Visit subscript expression node."""
+        if self.verbose:
+            print("Transforming subscript expression")
+
+        # Visit the object being subscripted
+        output_before = len(self.output)
+        self.visit(node.object)
+        object_len = len(self.output) - output_before
+        object_str = ''.join(self.output[-object_len:])
+        self.output = self.output[:-object_len]
+
+        # Visit the index
+        index_output_before = len(self.output)
+        self.visit(node.index)
+        index_len = len(self.output) - index_output_before
+        index_str = ''.join(self.output[-index_len:])
+        self.output = self.output[:-index_len]
+
+        # Output the subscripted expression
+        self.output.append(f"{object_str}[{index_str}]")
+
+    def visit_ComprehensionExpression(self, node: ComprehensionExpression):
+        """Visit comprehension expression node."""
+        if self.verbose:
+            print(f"Transforming {node.comp_type} comprehension")
+
+        # Get element expression as string
+        element_str = self.expr_to_str(node.element)
+
+        # For dict comprehensions, we need both key and element
+        if node.comp_type == 'dict' and node.key:
+            key_str = self.expr_to_str(node.key)
+            element_str = f"{key_str}: {element_str}"
+
+        # Get target as string
+        target_str = self.expr_to_str(node.target)
+
+        # Get iterable as string
+        iter_str = self.expr_to_str(node.iter)
+
+        # Build comprehension string
+        comp_str = f"{element_str} for {target_str} in {iter_str}"
+
+        # Add condition if present
+        if node.condition:
+            condition_str = self.expr_to_str(node.condition)
+            comp_str += f" if {condition_str}"
+
+        # Wrap in appropriate brackets
+        if node.comp_type == 'generator':
+            self.output.append(f"({comp_str})")
+        elif node.comp_type == 'list':
+            self.output.append(f"[{comp_str}]")
+        elif node.comp_type == 'set':
+            self.output.append(f"{{{comp_str}}}")
+        elif node.comp_type == 'dict':
+            self.output.append(f"{{{comp_str}}}")
 
     ### Helper methods ###
     def expr_to_str(self, expr):

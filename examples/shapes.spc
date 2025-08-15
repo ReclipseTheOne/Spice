@@ -128,5 +128,4 @@ def main() -> None {
     print(f"Circle area using utility: {MathUtils.circle_area(5.0):.2f}");
 }
 
-# Run the demo
 main();

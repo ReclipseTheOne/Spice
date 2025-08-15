@@ -6,7 +6,8 @@ from parser.ast_nodes import (
     Expression, AssignmentExpression, BinaryExpression, UnaryExpression,
     LogicalExpression, CallExpression, AttributeExpression,
     IdentifierExpression, LiteralExpression, ArgumentExpression,
-    SubscriptExpression, SliceExpression
+    SubscriptExpression, SliceExpression, ComprehensionExpression,
+    DictEntry
 )
 from errors import ParserError
 
@@ -259,6 +260,8 @@ class ExpressionParser:
 
                 if not self.parser.check(TokenType.IDENTIFIER):
                     raise ParserError("Expected attribute name after '.'")
+                else:
+                    print("Found attribute: ", self.parser.peek().value)
                 attr = self.parser.advance().value
                 expr = AttributeExpression(object=expr, attribute=attr)
 
@@ -302,66 +305,96 @@ class ExpressionParser:
         if self.parser.match(TokenType.FALSE):
             return LiteralExpression(value=False, literal_type='boolean')
 
+        # List literals and list comprehensions
         if self.parser.match(TokenType.LBRACKET):
-            elements = []
+            # Check for empty list
+            if self.parser.check(TokenType.RBRACKET):
+                self.parser.advance()
+                return LiteralExpression(value=[], literal_type='list')
 
-            if not self.parser.check(TokenType.RBRACKET):
-                while True:
-                    elem = self.parse_expression(context)  # Parse each element
-                    if elem is None:
-                        raise ParserError("Expected expression in list")
-                    elements.append(elem)
+            # Parse first expression
+            first_expr = self.parse_expression(context)
+            if first_expr is None:
+                raise ParserError("Expected expression in list")
 
-                    if not self.parser.match(TokenType.COMMA):
-                        break
+            # Check if it's a list comprehension
+            if self.parser.check(TokenType.FOR):
+                return self._parse_comprehension(first_expr, 'list')
+
+            # Regular list literal
+            elements = [first_expr]
+            while self.parser.match(TokenType.COMMA):
+                elem = self.parse_expression(context)
+                if elem is None:
+                    raise ParserError("Expected expression in list")
+                elements.append(elem)
 
             self.parser.consume(TokenType.RBRACKET, "Expected ']' after list elements")
             return LiteralExpression(value=elements, literal_type='list')
 
+        # Set/Dict literals and comprehensions
         if self.parser.match(TokenType.LBRACE):
             # Only parse as literal if NOT in condition context
-            # (to avoid conflicts with statement blocks)
             if context != "condition":
-                elements = []
-
-                if not self.parser.check(TokenType.RBRACE):
-                    while True:
-                        # Try to parse as key-value pair first
-                        if self._is_dict_entry():
-                            # Parse key
-                            key = self.parse_expression(context)
-                            if key is None:
-                                raise ParserError("Expected key in dictionary")
-
-                            self.parser.consume(TokenType.COLON, "Expected ':' after dictionary key")
-
-                            # Parse value
-                            value = self.parse_expression(context)
-                            if value is None:
-                                raise ParserError("Expected value in dictionary")
-
-                            # Create dict entry
-                            from parser.ast_nodes import DictEntry
-                            elements.append(DictEntry(key=key, value=value))
-                        else:
-                            # Parse as set element
-                            elem = self.parse_expression(context)
-                            if elem is None:
-                                raise ParserError("Expected expression in set")
-                            elements.append(elem)
-
-                        if not self.parser.match(TokenType.COMMA):
-                            break
-
-                if (self.parser.check(TokenType.NEWLINE)):
+                # Check for empty dict/set
+                if self.parser.check(TokenType.RBRACE):
                     self.parser.advance()
+                    return LiteralExpression(value=[], literal_type='dict')  # Empty {} is dict in Python
 
-                self.parser.consume(TokenType.RBRACE, "Expected '}' after set/dict elements")
+                # Parse first element/expression
+                first_expr = self.parse_expression(context)
+                if first_expr is None:
+                    raise ParserError("Expected expression in set/dict")
 
-                # Determine if it's a dict or set based on elements
-                if elements and all(isinstance(elem, DictEntry) for elem in elements):
+                # Check what type of literal/comprehension this is
+                if self.parser.match(TokenType.COLON):
+                    # It's a dict (either literal or comprehension)
+                    value_expr = self.parse_expression(context)
+                    if value_expr is None:
+                        raise ParserError("Expected value after ':' in dict")
+
+                    # Check for dict comprehension
+                    if self.parser.check(TokenType.FOR):
+                        comp = self._parse_comprehension(value_expr, 'dict')
+                        comp.key = first_expr  # Store the key expression
+                        return comp
+
+                    # Regular dict literal
+                    elements = [DictEntry(key=first_expr, value=value_expr)]
+
+                    while self.parser.match(TokenType.COMMA):
+                        # Parse key
+                        key = self.parse_expression(context)
+                        if key is None:
+                            break  # Allow trailing comma
+
+                        self.parser.consume(TokenType.COLON, "Expected ':' after dict key")
+
+                        # Parse value
+                        value = self.parse_expression(context)
+                        if value is None:
+                            raise ParserError("Expected value in dict")
+
+                        elements.append(DictEntry(key=key, value=value))
+
+                    self.parser.consume(TokenType.RBRACE, "Expected '}' after dict elements")
                     return LiteralExpression(value=elements, literal_type='dict')
+
+                # Check for set comprehension
+                elif self.parser.check(TokenType.FOR):
+                    return self._parse_comprehension(first_expr, 'set')
+
+                # Regular set literal
                 else:
+                    elements = [first_expr]
+
+                    while self.parser.match(TokenType.COMMA):
+                        elem = self.parse_expression(context)
+                        if elem is None:
+                            break  # Allow trailing comma
+                        elements.append(elem)
+
+                    self.parser.consume(TokenType.RBRACE, "Expected '}' after set elements")
                     return LiteralExpression(value=elements, literal_type='set')
             else:
                 # In condition context, don't consume { - let it terminate
@@ -395,11 +428,54 @@ class ExpressionParser:
             name = self.parser.previous().value
             return IdentifierExpression(name=name)
 
-        # Parenthesized expressions
+        # Parenthesized expressions, tuples, and generator expressions
         if self.parser.match(TokenType.LPAREN):
-            expr = self.parse_expression(context=context)
-            self.parser.consume(TokenType.RPAREN, "Expected ')' after expression")
-            return expr
+            # Check for empty tuple
+            if self.parser.check(TokenType.RPAREN):
+                self.parser.advance()
+                return LiteralExpression(value=[], literal_type='tuple')
+
+            # Parse first expression
+            first_expr = self.parse_expression(context=context)
+            if first_expr is None:
+                raise ParserError("Expected expression after '('")
+
+            # Check for generator expression
+            if self.parser.check(TokenType.FOR):
+                comp = self._parse_comprehension(first_expr, 'generator')
+                self.parser.consume(TokenType.RPAREN, "Expected ')' after generator expression")
+                return comp
+
+            # Check if this is a tuple (has comma) or just a parenthesized expression
+            if self.parser.match(TokenType.COMMA):
+                # It's a tuple - collect all elements
+                elements = [first_expr]
+
+                # Check for trailing comma (single element tuple)
+                if self.parser.check(TokenType.RPAREN):
+                    self.parser.advance()
+                    return LiteralExpression(value=elements, literal_type='tuple')
+
+                # Parse remaining elements
+                while True:
+                    elem = self.parse_expression(context=context)
+                    if elem is None:
+                        break  # Allow trailing comma
+                    elements.append(elem)
+
+                    if not self.parser.match(TokenType.COMMA):
+                        break
+
+                    # Check for trailing comma
+                    if self.parser.check(TokenType.RPAREN):
+                        break
+
+                self.parser.consume(TokenType.RPAREN, "Expected ')' after tuple elements")
+                return LiteralExpression(value=elements, literal_type='tuple')
+            else:
+                # Just a parenthesized expression
+                self.parser.consume(TokenType.RPAREN, "Expected ')' after expression")
+                return first_expr
 
         # Lambda expressions
         if self.parser.match(TokenType.LAMBDA):
@@ -553,3 +629,109 @@ class ExpressionParser:
             return False
 
         return True
+
+    def _parse_comprehension(self, element_expr: Expression, comp_type: str) -> ComprehensionExpression:
+        """Parse the comprehension part: for target in iter [if condition]"""
+
+        # Consume 'for'
+        self.parser.consume(TokenType.FOR, "Expected 'for' in comprehension")
+
+        # Parse target (loop variable)
+        target = self.parse_expression()
+        if target is None:
+            raise ParserError("Expected target variable in comprehension")
+
+        # Consume 'in'
+        self.parser.consume(TokenType.IN, "Expected 'in' in comprehension")
+
+        # Parse iterable
+        # We need to be careful here to not consume the closing bracket/brace/paren
+        # So we parse with a limited context
+        iter_expr = self._parse_comprehension_iter()
+        if iter_expr is None:
+            raise ParserError("Expected iterable in comprehension")
+
+        # Optional: if condition
+        condition = None
+        if self.parser.match(TokenType.IF):
+            condition = self._parse_comprehension_condition()
+            if condition is None:
+                raise ParserError("Expected condition after 'if' in comprehension")
+
+        # Handle closing bracket/brace based on comp_type
+        if comp_type == 'list':
+            self.parser.consume(TokenType.RBRACKET, "Expected ']' after list comprehension")
+        elif comp_type in ('set', 'dict'):
+            self.parser.consume(TokenType.RBRACE, "Expected '}' after set/dict comprehension")
+        # Note: generator expressions handle ) in the calling function
+
+        return ComprehensionExpression(
+            element=element_expr,
+            target=target,
+            iter=iter_expr,
+            condition=condition,
+            comp_type=comp_type
+        )
+
+
+    def _parse_comprehension_iter(self) -> Optional[Expression]:
+        """Parse the iterable expression in a comprehension, stopping at 'if' or closing bracket."""
+        # Parse a basic expression but stop at 'if' or closing delimiters
+        return self._parse_limited_expression(['if', ']', '}', ')'])
+
+
+    def _parse_comprehension_condition(self) -> Optional[Expression]:
+        """Parse the condition expression in a comprehension, stopping at closing bracket."""
+        # Parse a basic expression but stop at closing delimiters
+        return self._parse_limited_expression([']', '}', ')'])
+
+
+    def _parse_limited_expression(self, stop_tokens: list) -> Optional[Expression]:
+        """Parse an expression but stop at certain tokens."""
+        # This is a simplified expression parser that stops at specific tokens
+        # We'll parse up to but not including the stop tokens
+
+        # Save current position to detect if we've parsed anything
+        start_pos = self.parser.current
+
+        # Parse a basic expression (without consuming stop tokens)
+        # For now, we'll use a simple approach: parse until we hit a stop token
+        expr_tokens = []
+        depth = 0  # Track nesting depth for parentheses/brackets
+
+        while not self.parser.is_at_end():
+            current = self.parser.peek()
+
+            # Check if we hit a stop token at depth 0
+            if depth == 0:
+                if current.type == TokenType.IF and 'if' in stop_tokens:
+                    break
+                elif current.type == TokenType.RBRACKET and ']' in stop_tokens:
+                    break
+                elif current.type == TokenType.RBRACE and '}' in stop_tokens:
+                    break
+                elif current.type == TokenType.RPAREN and ')' in stop_tokens:
+                    break
+
+            # Track nesting depth
+            if current.type in (TokenType.LPAREN, TokenType.LBRACKET, TokenType.LBRACE):
+                depth += 1
+            elif current.type in (TokenType.RPAREN, TokenType.RBRACKET, TokenType.RBRACE):
+                depth -= 1
+                if depth < 0:  # We hit our closing delimiter
+                    break
+
+            self.parser.advance()
+
+        # If we didn't parse anything, return None
+        if self.parser.current == start_pos:
+            return None
+
+        # Reset position and parse the expression properly
+        end_pos = self.parser.current
+        self.parser.current = start_pos
+
+        # Now parse the expression knowing where to stop
+        expr = self.parse_expression()
+
+        return expr

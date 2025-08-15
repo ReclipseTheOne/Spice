@@ -134,9 +134,7 @@ abstract class Document extends Entity implements Cacheable, Searchable {
 
     def matches_query(query: str) -> bool {
         query_lower = query.lower();
-        return (query_lower in self.title.lower() or
-                query_lower in self.content.lower() or
-                query_lower in self.tags);
+        return (query_lower in self.title.lower() or query_lower in self.content.lower() or query_lower in self.tags);
     }
 
     # Document-specific methods
@@ -184,9 +182,7 @@ final class Contract extends Document {
     }
 
     def validate() -> bool {
-        return (len(self.title) > 0 and
-                len(self.content) > 0 and
-                len(self.parties) >= 2);
+        return (len(self.title) > 0 and len(self.content) > 0 and len(self.parties) >= 2);
     }
 
     def get_word_count() -> int {
@@ -236,9 +232,7 @@ final class Policy extends Document {
     }
 
     def validate() -> bool {
-        return (len(self.title) > 0 and
-                len(self.content) > 50 and  # Policies need substantial content
-                self.department != "");
+        return (len(self.title) > 0 and len(self.content) > 50 and self.department != "");
     }
 
     def get_word_count() -> int {
@@ -290,7 +284,8 @@ final class DocumentManager {
     static def create_document(doc_type: str, id: str) -> Document {
         if doc_type == "contract" {
             return Contract.create_with_id(id);
-        } elif doc_type == "policy" {
+        }
+        if doc_type == "policy" {
             return Policy.create_with_id(id);
         } else {
             raise ValueError(f"Unknown document type: {doc_type}");
@@ -387,3 +382,5 @@ def run_enterprise_demo() -> None {
     for doc in documents {
         print(f"   {doc.get_entity_type()} serialized: {doc.serialize()[:100]}...");
 }
+
+run_enterprise_demo();

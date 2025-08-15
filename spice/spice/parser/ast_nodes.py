@@ -20,7 +20,7 @@ class Module(ASTNode):
     body: List[ASTNode]
 
     def accept(self, visitor):
-        return visitor.visit_module(self)
+        return visitor.visit_Module(self)
 
 
 @dataclass
@@ -31,7 +31,7 @@ class InterfaceDeclaration(ASTNode):
     base_interfaces: List[str] = field(default_factory=list)
 
     def accept(self, visitor):
-        return visitor.visit_interface(self)
+        return visitor.visit_InterfaceDeclaration(self)
 
 
 @dataclass
@@ -42,7 +42,7 @@ class MethodSignature(ASTNode):
     return_type: Optional[str] = None
 
     def accept(self, visitor):
-        return visitor.visit_method_signature(self)
+        return visitor.visit_MethodSignature(self)
 
 
 @dataclass
@@ -53,7 +53,7 @@ class Parameter(ASTNode):
     default: Optional[Any] = None
 
     def accept(self, visitor):
-        return visitor.visit_parameter(self)
+        return visitor.visit_Parameter(self)
 
 
 @dataclass
@@ -67,7 +67,7 @@ class ClassDeclaration(ASTNode):
     is_final: bool = False
 
     def accept(self, visitor):
-        return visitor.visit_class(self)
+        return visitor.visit_ClassDeclaration(self)
 
 
 @dataclass
@@ -83,7 +83,7 @@ class FunctionDeclaration(ASTNode):
     decorators: List[str] = field(default_factory=list)
 
     def accept(self, visitor):
-        return visitor.visit_function(self)
+        return visitor.visit_FunctionDeclaration(self)
 
 
 @dataclass
@@ -92,7 +92,7 @@ class BlockStatement(ASTNode):
     statements: List[ASTNode]
 
     def accept(self, visitor):
-        return visitor.visit_block(self)
+        return visitor.visit_BlockStatement(self)
 
 
 @dataclass
@@ -102,7 +102,7 @@ class ExpressionStatement(ASTNode):
     has_semicolon: bool = False
 
     def accept(self, visitor):
-        return visitor.visit_expression_statement(self)
+        return visitor.visit_ExpressionStatement(self)
 
 
 @dataclass
@@ -111,7 +111,7 @@ class PassStatement(ASTNode):
     has_semicolon: bool = False
 
     def accept(self, visitor):
-        return visitor.visit_pass_statement(self)
+        return visitor.visit_PassStatement(self)
 
 
 @dataclass
@@ -121,7 +121,7 @@ class ReturnStatement(ASTNode):
     has_semicolon: bool = False
 
     def accept(self, visitor):
-        return visitor.visit_return_statement(self)
+        return visitor.visit_ReturnStatement(self)
 
 
 @dataclass
@@ -132,7 +132,7 @@ class IfStatement(ASTNode):
     else_body: List[ASTNode] = field(default_factory=list)
 
     def accept(self, visitor):
-        return visitor.visit_if_statement(self)
+        return visitor.visit_IfStatement(self)
 
 
 @dataclass
@@ -142,7 +142,7 @@ class ForStatement(ASTNode):
     body: List[ASTNode]
 
     def accept(self, visitor):
-        return visitor.visit_for_statement(self)
+        return visitor.visit_ForStatement(self)
 
 
 @dataclass
@@ -152,7 +152,7 @@ class WhileStatement(ASTNode):
     body: List[ASTNode]
 
     def accept(self, visitor):
-        return visitor.visit_while_statement(self)
+        return visitor.visit_WhileStatement(self)
 
 
 @dataclass
@@ -163,7 +163,7 @@ class SwitchStatement(ASTNode):
     default: List[ASTNode] = field(default_factory=list)
 
     def accept(self, visitor):
-        return visitor.visit_switch_statement(self)
+        return visitor.visit_SwitchStatement(self)
 
 
 @dataclass
@@ -173,7 +173,7 @@ class CaseClause(ASTNode):
     body: List[ASTNode]
 
     def accept(self, visitor):
-        return visitor.visit_case_clause(self)
+        return visitor.visit_CaseClause(self)
 
 
 # Expression nodes
@@ -191,7 +191,7 @@ class AssignmentExpression(Expression):
     operator: str = '='  # '=', '+=', '-=', '*=', '/=', etc.
 
     def accept(self, visitor):
-        return visitor.visit_assignment(self)
+        return visitor.visit_AssignmentExpression(self)
 
 
 @dataclass
@@ -200,7 +200,7 @@ class IdentifierExpression(Expression):
     name: str
 
     def accept(self, visitor):
-        return visitor.visit_identifier(self)
+        return visitor.visit_IdentifierExpression(self)
 
 
 @dataclass
@@ -210,7 +210,7 @@ class AttributeExpression(Expression):
     attribute: str
 
     def accept(self, visitor):
-        return visitor.visit_attribute(self)
+        return visitor.visit_AttributeExpression(self)
 
 
 @dataclass
@@ -220,7 +220,7 @@ class LiteralExpression(Expression):
     literal_type: str  # 'string', 'number', 'boolean', etc.
 
     def accept(self, visitor):
-        return visitor.visit_literal(self)
+        return visitor.visit_LiteralExpression(self)
 
 
 @dataclass
@@ -251,7 +251,7 @@ class LogicalExpression(Expression):
     right: Expression
 
     def accept(self, visitor):
-        return visitor.visit_logical_expression(self)
+        return visitor.visit_LogicalExpression(self)
 
 
 @dataclass
@@ -261,7 +261,7 @@ class UnaryExpression(Expression):
     operand: Expression
 
     def accept(self, visitor):
-        return visitor.visit_unary_expression(self)
+        return visitor.visit_UnaryExpression(self)
 
 
 @dataclass
@@ -272,7 +272,7 @@ class BinaryExpression(Expression):
     right: Expression
 
     def accept(self, visitor):
-        return visitor.visit_binary_expression(self)
+        return visitor.visit_BinaryExpression(self)
 
 
 @dataclass
@@ -283,7 +283,7 @@ class LambdaExpression(Expression):
     return_type: Optional[str] = None
 
     def accept(self, visitor):
-        return visitor.visit_lambda_expression(self)
+        return visitor.visit_LambdaExpression(self)
 
 
 @dataclass
@@ -293,7 +293,7 @@ class RaiseStatement(ASTNode):
     has_semicolon: bool = False
 
     def accept(self, visitor):
-        return visitor.visit_raise_statement(self)
+        return visitor.visit_RaiseStatement(self)
 
 
 @dataclass
@@ -306,7 +306,7 @@ class ImportStatement(ASTNode):
     has_semicolon: bool = False
 
     def accept(self, visitor):
-        return visitor.visit_import_statement(self)
+        return visitor.visit_ImportStatement(self)
 
 
 @dataclass
@@ -316,7 +316,7 @@ class DictEntry(Expression):
     value: Expression
 
     def accept(self, visitor):
-        return visitor.visit_dict_entry(self)
+        return visitor.visit_DictEntry(self)
 
 
 @dataclass
@@ -326,7 +326,7 @@ class SubscriptExpression(Expression):
     index: Expression  # Can be a simple expression or SliceExpression
 
     def accept(self, visitor):
-        return visitor.visit_subscript_expression(self)
+        return visitor.visit_SubscriptExpression(self)
 
 
 @dataclass
@@ -337,4 +337,17 @@ class SliceExpression(Expression):
     step: Optional[Expression] = None
 
     def accept(self, visitor):
-        return visitor.visit_slice_expression(self)
+        return visitor.visit_SliceExpression(self)
+
+@dataclass
+class ComprehensionExpression(Expression):
+    """Comprehension expression: [expr for target in iter if condition]"""
+    element: Expression  # The expression to evaluate for each item
+    target: Expression   # The loop variable(s)
+    iter: Expression     # The iterable to loop over
+    condition: Optional[Expression] = None  # Optional filter condition
+    comp_type: str = 'generator'  # 'generator', 'list', 'dict', 'set'
+    key: Optional[Expression] = None  # For dict comprehensions: key expression
+
+    def accept(self, visitor):
+        return visitor.visit_ComprehensionExpression(self)

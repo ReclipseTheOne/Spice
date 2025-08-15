@@ -62,12 +62,34 @@ class Lexer:
         (r'\d+\.\d+', TokenType.NUMBER),
         (r'\d+', TokenType.NUMBER),
 
-        # Strings
-        (r'f""".*?"""|f\'\'\'.*?\'\'\'|f".*?"|f\'.*?\'', TokenType.FSTRING),
-        (r'r""".*?"""|r\'\'\'.*?\'\'\'|r".*?"|r\'.*?\'', TokenType.RSTRING),
-        (r'fr""".*?"""|fr\'\'\'.*?\'\'\'|fr".*?"|fr\'.*?\'|rf""".*?"""|rf\'\'\'.*?\'\'\'|rf".*?"|rf\'.*?\'', TokenType.FRSTRING),
-        (r'REGEX".*?"|REGEX\'.*?\'', TokenType.REGEX),
-        (r'""".*?"""|\'\'\'.*?\'\'\'|".*?"|\'.*?\'', TokenType.STRING),
+        # Special Strings
+        (r'f"""(.*?)"""', TokenType.FSTRING),
+        (r"f'''(.*?)'''", TokenType.FSTRING),
+        (r'f"([^"]*)"', TokenType.FSTRING),
+        (r"f'([^']*)'", TokenType.FSTRING),
+
+        (r'r"""(.*?)"""', TokenType.RSTRING),
+        (r"r'''(.*?)'''", TokenType.RSTRING),
+        (r'r"([^"]*)"', TokenType.RSTRING),
+        (r"r'([^']*)'", TokenType.RSTRING),
+
+        (r'fr"""(.*?)"""', TokenType.FRSTRING),
+        (r"fr'''(.*?)'''", TokenType.FRSTRING),
+        (r'fr"([^"]*)"', TokenType.FRSTRING),
+        (r"fr'([^']*)'", TokenType.FRSTRING),
+        (r'rf"""(.*?)"""', TokenType.FRSTRING),
+        (r"rf'''(.*?)'''", TokenType.FRSTRING),
+        (r'rf"([^"]*)"', TokenType.FRSTRING),
+        (r"rf'([^']*)'", TokenType.FRSTRING),
+
+        (r'REGEX"([^"]*)"', TokenType.REGEX),
+        (r"REGEX'([^']*)'", TokenType.REGEX),
+
+        # Regular strings
+        (r'"""(.*?)"""', TokenType.STRING),
+        (r"'''(.*?)'''", TokenType.STRING),
+        (r'"([^"]*)"', TokenType.STRING),
+        (r"'([^']*)'", TokenType.STRING),
 
         # Operators (order matters!)
         (r'==', TokenType.EQUAL),
@@ -183,7 +205,14 @@ class Lexer:
             for pattern, token_type in self.patterns:
                 match = pattern.match(line, pos)
                 if match:
-                    value = match.group(0)
+                    if token_type in [TokenType.FSTRING, TokenType.RSTRING, TokenType.FRSTRING, TokenType.REGEX, TokenType.STRING]:
+                        # For string types, capture the content (group 1) not the whole match
+                        if match.lastindex and match.lastindex >= 1:
+                            value = match.group(1)  # Get the content without quotes/prefix
+                        else:
+                            value = match.group(0)  # Fallback to full match
+                    else:
+                        value = match.group(0)
 
                     # Handle keywords vs identifiers
                     if token_type == TokenType.IDENTIFIER and value in self.KEYWORDS:

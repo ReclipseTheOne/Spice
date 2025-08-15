@@ -23,15 +23,15 @@ abstract class Animal {
         self.name = name;
         self.age = age;
     }
-    
+
     # Abstract method that must be implemented by subclasses
     abstract def make_sound() -> str;
-    
+
     # Final method that cannot be overridden
     final def get_info() -> str {
         return f"{self.name} is {self.age} years old";
     }
-    
+
     # Static utility method
     static def get_kingdom() -> str {
         return "Animalia";
@@ -44,15 +44,15 @@ class Bird extends Animal implements Flyable {
         super().__init__(name, age);
         self.wingspan = wingspan;
     }
-    
+
     def make_sound() -> str {
         return "Tweet tweet!";
     }
-    
+
     def fly() -> None {
         print(f"{self.name} is flying with wingspan {self.wingspan}m");
     }
-    
+
     def get_max_altitude() -> float {
         return 1000.0;  # Base altitude for birds
     }
@@ -64,15 +64,15 @@ class Fish extends Animal implements Swimmable {
         super().__init__(name, age);
         self.fin_count = fin_count;
     }
-    
+
     def make_sound() -> str {
         return "Blub blub!";
     }
-    
+
     def swim() -> None {
         print(f"{self.name} is swimming with {self.fin_count} fins");
     }
-    
+
     def get_max_depth() -> float {
         return 100.0;  # Base depth for fish
     }
@@ -83,23 +83,23 @@ final class Duck extends Bird implements Swimmable {
     def __init__(self, name: str, age: int) -> None {
         super().__init__(name, age, 0.6);  # Ducks have ~60cm wingspan
     }
-    
+
     def make_sound() -> str {
         return "Quack quack!";
     }
-    
+
     def swim() -> None {
         print(f"{self.name} the duck is paddling on water");
     }
-    
+
     def get_max_depth() -> float {
         return 5.0;  # Ducks don't dive very deep
     }
-    
+
     def get_max_altitude() -> float {
         return 500.0;  # Lower than other birds
     }
-    
+
     # Duck-specific method
     final def dabble() -> None {
         print(f"{self.name} is dabbling for food");
@@ -111,19 +111,19 @@ final class Cheetah extends Animal implements Runnable {
     def __init__(self, name: str, age: int) -> None {
         super().__init__(name, age);
     }
-    
+
     def make_sound() -> str {
         return "Chirp roar!";
     }
-    
+
     def run() -> None {
         print(f"{self.name} the cheetah is running at incredible speed!");
     }
-    
+
     def get_max_speed() -> float {
         return 120.0;  # km/h
     }
-    
+
     static def get_conservation_status() -> str {
         return "Vulnerable";
     }
@@ -134,23 +134,25 @@ def demonstrate_animal_behaviors() -> None {
     # Create instances
     duck = Duck("Donald", 3);
     cheetah = Cheetah("Flash", 5);
-    
+
     # Demonstrate basic animal behavior
     print(duck.get_info());
     print(duck.make_sound());
-    
+
     print(cheetah.get_info());
     print(cheetah.make_sound());
-    
+
     # Demonstrate interface behaviors
     duck.fly();
     duck.swim();
     duck.dabble();
-    
+
     cheetah.run();
     print(f"Max speed: {cheetah.get_max_speed()} km/h");
-    
+
     # Static method calls
     print(f"Kingdom: {Animal.get_kingdom()}");
     print(f"Cheetah status: {Cheetah.get_conservation_status()}");
 }
+
+demonstrate_animal_behaviors();

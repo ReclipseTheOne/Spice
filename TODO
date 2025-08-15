@@ -1,7 +1,5 @@
- - Multiline OR, AND support
- - Fix Strings appearing as "''" (single quote in double quotes) on translation.
- - Fix f-Strings showing up as f"f''" (single quote f-string in double quotes f-string)
- - Fix dictionary entries on compilation showing up as Entry[]
+ - Multiline support... (why does it die on me)
+ - Fix dictionaries.
  - Fix imports getting killed on indentation (on translation)
  - Complete documentation on every single part of the code for the sake of my life
  - Less spaghet code

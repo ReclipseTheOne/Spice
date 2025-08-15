@@ -111,7 +111,8 @@ final class Player extends VisualGameObject implements Collidable {
     def on_collision(other) -> None {
         if other.get_type() == "Enemy" {
             self.take_damage(10);
-        } elif other.get_type() == "Powerup" {
+        }
+        if other.get_type() == "Powerup" {
             self.score += 100;
         }
     }
@@ -220,10 +221,7 @@ final class GameUtils {
         bounds1 = obj1.get_bounds();
         bounds2 = obj2.get_bounds();
         # Simple AABB collision detection
-        return not (bounds1[0] + bounds1[2] < bounds2[0] or
-                   bounds2[0] + bounds2[2] < bounds1[0] or
-                   bounds1[1] + bounds1[3] < bounds2[1] or
-                   bounds2[1] + bounds2[3] < bounds1[1]);
+        return not (bounds1[0] + bounds1[2] < bounds2[0] or bounds2[0] + bounds2[2] < bounds1[0] or bounds1[1] + bounds1[3] < bounds2[1] or bounds2[1] + bounds2[3] < bounds1[1]);
     }
 
     static def get_game_version() -> str {
@@ -265,3 +263,5 @@ def run_game_demo() -> None {
 
     print(f"\nGame objects created: {GameObject.generate_id() - 1}");
 }
+
+run_game_demo();
