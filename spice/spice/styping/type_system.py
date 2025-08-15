@@ -1,4 +1,4 @@
-"""Type system design for Spy language."""
+"""Type system design for Spice language."""
 
 from typing import Dict, List, Any, Optional, Union
 from enum import Enum
@@ -20,15 +20,15 @@ class TypeKind(Enum):
     CLASS = "class"
 
 
-class SpyType:
-    """Represents a type in the Spy type system."""
+class SpiceType:
+    """Represents a type in the Spice type system."""
 
-    def __init__(self, kind: TypeKind, name: str, params: List['SpyType'] = []):
+    def __init__(self, kind: TypeKind, name: str, params: List['SpiceType'] = []):
         self.kind = kind
         self.name = name
         self.params = params or []
-        self.fields: Dict[str, 'SpyType'] = {}  # Field name to type
-        self.methods: Dict[str, 'SpyType'] = {}  # Method name to type (could be signature type)
+        self.fields: Dict[str, 'SpiceType'] = {}  # Field name to type
+        self.methods: Dict[str, 'SpiceType'] = {}  # Method name to type (could be signature type)
 
     def __str__(self):
         if self.params:
@@ -36,7 +36,7 @@ class SpyType:
             return f"{self.name}[{param_str}]"
         return self.name
 
-    def is_assignable_to(self, other: 'SpyType') -> bool:
+    def is_assignable_to(self, other: 'SpiceType') -> bool:
         """Check if this type can be assigned to other type."""
         # any can be assigned to anything
         if self.kind == TypeKind.ANY:
@@ -53,32 +53,32 @@ class SpyType:
         # TODO: Implement inheritance, protocol compatibility, etc.
         return False
 
-    def add_field(self, name: str, field_type: 'SpyType'):
+    def add_field(self, name: str, field_type: 'SpiceType'):
         """Add a field to the type."""
         self.fields[name] = field_type
 
-    def add_method(self, name: str, method_type: 'SpyType'):
+    def add_method(self, name: str, method_type: 'SpiceType'):
         """Add a method to the type."""
         self.methods[name] = method_type
 
-    def get_field(self, name: str) -> Optional['SpyType']:
+    def get_field(self, name: str) -> Optional['SpiceType']:
         """Get the type of a field."""
         return self.fields.get(name)
 
-    def get_method(self, name: str) -> Optional['SpyType']:
+    def get_method(self, name: str) -> Optional['SpiceType']:
         """Get the type of a method."""
         return self.methods.get(name)
 
 
 class TypeChecker:
-    """Type checker for Spy language."""
+    """Type checker for Spice language."""
 
     def __init__(self):
-        self.symbol_table: Dict[str, SpyType] = {}
+        self.symbol_table: Dict[str, SpiceType] = {}
         self.errors: List[str] = []
         self.warnings: List[str] = []
 
-    def check_assignment(self, target: SpyType, value: SpyType, location: str = ""):
+    def check_assignment(self, target: SpiceType, value: SpiceType, location: str = ""):
         """Check if assignment is type-safe."""
         if not value.is_assignable_to(target):
             self.errors.append(
@@ -86,17 +86,17 @@ class TypeChecker:
                 f"Cannot assign {value} to {target}"
             )
 
-    def infer_type(self, expression) -> SpyType:
+    def infer_type(self, expression) -> SpiceType:
         """Infer the type of an expression."""
         # TODO: Implement type inference
-        return SpyType(TypeKind.ANY, "any")
+        return SpiceType(TypeKind.ANY, "any")
 
     def validate_interface_implementation(self, class_name: str, interface_name: str):
         """Validate that a class properly implements an interface."""
         # TODO: Check that all interface methods are implemented
         pass
 
-    def resolve_attribute(self, obj_type: SpyType, attr: str, location: str = "") -> Optional[SpyType]:
+    def resolve_attribute(self, obj_type: SpiceType, attr: str, location: str = "") -> Optional[SpiceType]:
         """Resolve the type of an attribute or method on an object type."""
         field_type = obj_type.get_field(attr)
         if field_type:

@@ -1,4 +1,4 @@
-"""Tests for the Spy to Python transformer."""
+"""Tests for the Spice to Python transformer."""
 
 from lexer import Lexer
 from parser import Parser

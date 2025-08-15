@@ -1,4 +1,4 @@
-"""Tests for the Spy lexer."""
+"""Tests for the Spice lexer."""
 
 import pytest
 from lexer import Lexer, TokenType
@@ -12,7 +12,7 @@ class TestLexer:
     """Test lexer functionality."""
 
     def test_keywords(self):
-        """Test tokenization of Spy keywords."""
+        """Test tokenization of Spice keywords."""
         source = "interface abstract final static class def"
 
         log_test_start("test_keywords", source)

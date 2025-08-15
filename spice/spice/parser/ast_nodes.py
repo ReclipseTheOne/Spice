@@ -1,4 +1,4 @@
-"""AST node definitions for Spy language."""
+"""AST node definitions for Spice language."""
 
 from dataclasses import dataclass, field
 from typing import List, Optional, Any
@@ -16,7 +16,7 @@ class ASTNode(ABC):
 
 @dataclass
 class Module(ASTNode):
-    """Root node representing a .spy file."""
+    """Root node representing a .spc file."""
     body: List[ASTNode]
 
     def accept(self, visitor):

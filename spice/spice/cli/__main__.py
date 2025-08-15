@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Spice CLI - SPy compiler."""
+"""Spice CLI - Spice compiler."""
 
 import click
 import sys
@@ -58,13 +58,13 @@ def typed(func):
 @click.option('--type-check', type=click.Choice(['none', 'warnings', 'strict']),
               default='none', help='Type checking level (default: none)')
 @click.option('--runtime-checks', is_flag=True, help='Add runtime type checking to output')
-@click.version_option(version='0.1.0', prog_name='spyc')
+@click.version_option(version='0.1.0', prog_name='spicy')
 def main(source: str, output: Optional[str], check: bool, watch: bool, verbose: bool, type_check: str, runtime_checks: bool):
-    """Compile Spice (.spy) files to Python."""
+    """Compile Spice (.spc) files to Python."""
     source_path = Path(source)
 
-    if not source_path.suffix == '.spy':
-        click.echo(f"Error: Expected .spy file, got {source_path.suffix}", err=True)
+    if not source_path.suffix == '.spc':
+        click.echo(f"Error: Expected .spc file, got {source_path.suffix}", err=True)
         sys.exit(1)
 
     if output is None:
@@ -91,7 +91,7 @@ def main(source: str, output: Optional[str], check: bool, watch: bool, verbose: 
 
 
 def compile_file(source_path: Path, output_path: Path, check_only: bool, verbose: bool, type_check: str = 'none', runtime_checks: bool = False):
-    """Compile a single .spy file to Python."""
+    """Compile a single .spc file to Python."""
     if verbose:
         click.echo(f"🚀 Starting compilation of {source_path}")
         click.echo("=" * 50)

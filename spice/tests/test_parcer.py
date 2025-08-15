@@ -1,11 +1,11 @@
-"""Tests for the Spy parser."""
+"""Tests for the Spice parser."""
 
 import pytest
 from lexer import Lexer
 from parser import Parser
 from parser.ast_nodes import InterfaceDeclaration
 from testutils import (
-    assert_contains_all, assert_count, log_test_start, 
+    assert_contains_all, assert_count, log_test_start,
     log_test_result, safe_assert
 )
 
@@ -37,33 +37,33 @@ class TestParser:
         safe_assert(len(ast.body) == 1, f"Expected 1 AST node, got {len(ast.body)}")
         interface = ast.body[0]
 
-        safe_assert(isinstance(interface, InterfaceDeclaration), 
+        safe_assert(isinstance(interface, InterfaceDeclaration),
                    f"Expected InterfaceDeclaration, got {type(interface).__name__}")
-        safe_assert(interface.name == "Drawable", 
+        safe_assert(interface.name == "Drawable",
                    f"Expected interface name 'Drawable', got '{interface.name}'")
-        safe_assert(len(interface.methods) == 2, 
+        safe_assert(len(interface.methods) == 2,
                    f"Expected 2 methods, got {len(interface.methods)}")
 
         # Check first method
         draw_method = interface.methods[0]
-        safe_assert(draw_method.name == "draw", 
+        safe_assert(draw_method.name == "draw",
                    f"Expected first method name 'draw', got '{draw_method.name}'")
-        safe_assert(len(draw_method.params) == 2, 
+        safe_assert(len(draw_method.params) == 2,
                    f"Expected 2 parameters for draw method, got {len(draw_method.params)}")
-        safe_assert(draw_method.params[0].name == "x", 
+        safe_assert(draw_method.params[0].name == "x",
                    f"Expected first param 'x', got '{draw_method.params[0].name}'")
-        safe_assert(draw_method.params[0].type_annotation == "int", 
+        safe_assert(draw_method.params[0].type_annotation == "int",
                    f"Expected first param type 'int', got '{draw_method.params[0].type_annotation}'")
-        safe_assert(draw_method.return_type == "None", 
+        safe_assert(draw_method.return_type == "None",
                    f"Expected return type 'None', got '{draw_method.return_type}'")
 
         # Check second method
         bounds_method = interface.methods[1]
-        safe_assert(bounds_method.name == "get_bounds", 
+        safe_assert(bounds_method.name == "get_bounds",
                    f"Expected second method name 'get_bounds', got '{bounds_method.name}'")
-        safe_assert(len(bounds_method.params) == 0, 
+        safe_assert(len(bounds_method.params) == 0,
                    f"Expected 0 parameters for get_bounds method, got {len(bounds_method.params)}")
-        safe_assert(bounds_method.return_type == "tuple", 
+        safe_assert(bounds_method.return_type == "tuple",
                    f"Expected return type 'tuple', got '{bounds_method.return_type}'")
 
     def test_interface_with_inheritance(self):

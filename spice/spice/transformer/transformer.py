@@ -1,4 +1,4 @@
-"""Transform Spy AST to Python code."""
+"""Transform Spice AST to Python code."""
 
 # Import line will be very long but CTRL + Click doesn't work on * imports and I hate it
 from parser import (
@@ -13,7 +13,7 @@ from parser import (
 
 
 class Transformer:
-    """Transform Spy AST to Python code."""
+    """Transform Spice AST to Python code."""
 
     def __init__(self, verbose: bool = False):
         self.indent_level = 0

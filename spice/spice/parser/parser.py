@@ -1,4 +1,4 @@
-"""Parser for Spy language."""
+"""Parser for Spice language."""
 
 from typing import List, Optional, Any
 from lexer import Token, TokenType
@@ -17,7 +17,7 @@ class ParseError(SpiceError):
 
 
 class Parser:
-    """Parse Spy tokens into an AST."""
+    """Parse Spice tokens into an AST."""
 
     def __init__(self, verbose: bool = False):
         self.verbose = verbose

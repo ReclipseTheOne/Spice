@@ -1,4 +1,4 @@
-"""Parser module for Spy language."""
+"""Parser module for Spice language."""
 
 from parser.parser import Parser
 

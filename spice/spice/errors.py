@@ -1,4 +1,4 @@
-"""Error classes for Spy compiler."""
+"""Error classes for Spice compiler."""
 
 
 class SpiceError(Exception):

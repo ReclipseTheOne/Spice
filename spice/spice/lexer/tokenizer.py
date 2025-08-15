@@ -1,4 +1,4 @@
-"""Tokenizer for Spy (Static Python) language."""
+"""Tokenizer for Spice (Static Python) language."""
 
 import re
 from typing import List
@@ -7,7 +7,7 @@ from lexer.tokens import Token, TokenType
 
 
 class Lexer:
-    """Tokenizes Spy source code."""
+    """Tokenizes Spice source code."""
 
     # Keywords mapping
     KEYWORDS = {

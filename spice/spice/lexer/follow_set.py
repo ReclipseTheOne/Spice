@@ -1,7 +1,7 @@
 """
-Follow set definitions for Spy parser.
+Follow set definitions for Spice parser.
 
-This file should be extended per every change in Spy grammar.
+This file should be extended per every change in Spice grammar.
 The FOLLOW_SET should NOT be used as a final check for syntax.
 This is just filter for broad verification
 """

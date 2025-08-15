@@ -1,5 +1,5 @@
 # Simple Getting Started Example - Basic class keywords and syntax
-# This is a beginner-friendly introduction to Spy language features
+# This is a beginner-friendly introduction to Spice language features
 
 # Define a simple interface
 interface Drawable {
@@ -103,7 +103,7 @@ final class MathUtils {
 
 # Demonstrate the functionality
 def main() -> None {
-    print("=== Spy Language Demo ===");
+    print("=== Spice Language Demo ===");
 
     # Create some shapes
     circle = Circle("red", 5.0);

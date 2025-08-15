@@ -1,4 +1,4 @@
-"""Transformer module for Spy to Python compilation."""
+"""Transformer module for Spice to Python compilation."""
 
 from transformer.transformer import Transformer
 

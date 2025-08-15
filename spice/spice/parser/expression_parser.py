@@ -1,4 +1,4 @@
-"""Restructured expression parsing methods for the Spy parser."""
+"""Restructured expression parsing methods for the Spice parser."""
 
 from typing import Optional, List
 from lexer import TokenType

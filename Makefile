@@ -31,5 +31,5 @@ build:
 	python -m build
 
 run-example:
-	spyc examples/shapes.spy -v
+	spicy examples/shapes.spc -v
 	python examples/example.py

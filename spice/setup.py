@@ -1,16 +1,16 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="spyc",
+    name="spicy",
     version="0.1.0",
-    description="A Python Superset with all the Spice",
+    description="Python but with all the spice",
     author="Reclipse",
     packages=find_packages(where="spice"),
     package_dir={"": "spice"},
     entry_points={
         "console_scripts": [
-            "spyc=cli.__main__:main",
-            "spy=cli.run:run"
+            "spicy=cli.__main__:main",
+            "spice=cli.run:run"
         ]
     },
     python_requires=">=3.8",

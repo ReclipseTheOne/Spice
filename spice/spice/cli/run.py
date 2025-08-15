@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Direct execution of .spy files."""
+"""Direct execution of .spc files."""
 
 import click
 import sys
@@ -19,11 +19,11 @@ from errors import SpiceError
 @click.option('-v', '--verbose', is_flag=True, help='Verbose output')
 @click.option('--keep-temp', is_flag=True, help='Keep temporary Python file for debugging')
 def run(source: str, verbose: bool, keep_temp: bool):
-    """Run a .spy file directly without creating permanent Python files."""
+    """Run a .spc file directly without creating permanent Python files."""
     source_path = Path(source)
 
-    if not source_path.suffix == '.spy':
-        click.echo(f"Error: Expected .spy file, got {source_path.suffix}", err=True)
+    if not source_path.suffix == '.spc':
+        click.echo(f"Error: Expected .spc file, got {source_path.suffix}", err=True)
         sys.exit(1)
 
     try:        # Create temporary Python file
@@ -34,8 +34,8 @@ def run(source: str, verbose: bool, keep_temp: bool):
                 click.echo(f"🚀 Running {source_path}...")
                 click.echo(f"📝 Temporary Python file: {temp_path}")
 
-            # Compile spy to python
-            compile_spy_file(source_path, temp_path, verbose)
+            # Compile Spice to python
+            compile_Spice_file(source_path, temp_path, verbose)
 
             # Execute the Python file
             if verbose:
@@ -63,8 +63,8 @@ def run(source: str, verbose: bool, keep_temp: bool):
         sys.exit(1)
 
 
-def compile_spy_file(source_path: Path, output_path: Path, verbose: bool):
-    """Compile a .spy file to Python."""
+def compile_Spice_file(source_path: Path, output_path: Path, verbose: bool):
+    """Compile a .spc file to Python."""
     # Read source
     with open(source_path, 'r', encoding='utf-8') as f:
         source_code = f.read()

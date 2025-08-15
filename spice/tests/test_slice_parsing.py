@@ -1,4 +1,4 @@
-"""Tests for slice expression parsing in the Spy parser."""
+"""Tests for slice expression parsing in the Spice parser."""
 
 from lexer import Lexer
 from parser import Parser
