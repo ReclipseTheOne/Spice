@@ -10,6 +10,7 @@ from parser.ast_nodes import (
 )
 from errors import SpiceError
 
+from printils import parser_log
 
 class ParseError(SpiceError):
     """Parser error."""
@@ -32,13 +33,13 @@ class Parser:
         """Check if current token matches any of the given types."""
         if advance_at_newline and self.check(TokenType.NEWLINE):
             if self.verbose:
-                print("Skipped NewLine token on match.")
+                parser_log.info("Skipped NewLine token on match.")
             self.advance()
 
         for token_type in types:
             if self.check(token_type):
                 if self.verbose:
-                    print(f"Matched token {self.peek()} for: {', '.join([t.name for t in types])}")
+                    parser_log.success(f"Matched token {self.peek()} for: {', '.join([t.name for t in types])}")
                 self.advance()
                 return True
         return False
@@ -80,12 +81,12 @@ class Parser:
         if self.check(token_type):
             token = self.advance()
             if self.verbose:
-                print(f"Consumed token: {token.type.name}" +
-                      (f" '{token.value}'" if token.value is not None else ""))
+                parser_log.info(f"Consumed token: {token.type.name}" +
+                                (f" '{token.value}'" if token.value is not None else ""))
             return token
 
         if self.verbose:
-            print(f"ERROR: {message} - found {self.peek().type.name} instead")
+            parser_log.error(f"{message} - found {self.peek().type.name} instead")
         raise ParseError(f"{message} at line {self.peek().line}")
 
     def get_tokens(self, start: int = -1, size: Optional[int] = None) -> List[Token]:
@@ -103,7 +104,7 @@ class Parser:
         self.current = 0
 
         if self.verbose:
-            print(f"Starting parsing with {len(tokens)} tokens")
+            parser_log.info(f"Starting parsing with {len(tokens)} tokens")
 
         statements = []
         while not self.is_at_end():
@@ -115,11 +116,11 @@ class Parser:
             stmt = self.parse_statement()
             if stmt:
                 if self.verbose:
-                    print(f"Added statement: {type(stmt).__name__}")
+                    parser_log.info(f"Added statement: {type(stmt).__name__}")
                 statements.append(stmt)
 
         if self.verbose:
-            print(f"Finished parsing: Generated AST with {len(statements)} top-level statements")
+            parser_log.success(f"Finished parsing: Generated AST with {len(statements)} top-level statements")
         return Module(body=statements)
 
 
@@ -140,7 +141,7 @@ class Parser:
         name = self.consume(TokenType.IDENTIFIER, "Expected interface name").value
 
         if self.verbose:
-            print(f"Parsing interface '{name}'")
+            parser_log.info(f"Parsing interface '{name}'")
 
         # Optional base interfaces
         bases = []
@@ -148,23 +149,23 @@ class Parser:
             base = self.consume(TokenType.IDENTIFIER, "Expected base interface").value
             bases.append(base)
             if self.verbose:
-                print(f"Added base interface: {base}")
+                parser_log.info(f"Added base interface: {base}")
 
             while self.match(TokenType.COMMA):
                 base = self.consume(TokenType.IDENTIFIER, "Expected base interface").value
                 bases.append(base)
                 if self.verbose:
-                    print(f"Added base interface: {base}")
+                    parser_log.info(f"Added base interface: {base}")
 
         # Interface body
         self.consume(TokenType.LBRACE, "Expected '{' after interface declaration")
         if self.verbose:
-            print("Parsing C-style interface body")
+            parser_log.info("Parsing C-style interface body")
 
         methods = self.parse_interface_body()
 
         if self.verbose:
-            print(f"Completed interface '{name}' with {len(methods)} methods")
+            parser_log.info(f"Completed interface '{name}' with {len(methods)} methods")
 
         return InterfaceDeclaration(name, methods, bases if bases else [])
 
@@ -182,7 +183,7 @@ class Parser:
                 method = self.parse_method_signature()
                 methods.append(method)
                 if self.verbose:
-                    print(f"Added method signature: {method.name}")
+                    parser_log.info(f"Added method signature: {method.name}")
             else:
                 raise ParseError(f"Expected method signature, got {self.peek()}")
 
@@ -201,11 +202,11 @@ class Parser:
         if self.match(TokenType.ABSTRACT):
             is_abstract = True
             if self.verbose:
-                print("Class is abstract")
+                parser_log.info("Class is abstract")
         elif self.match(TokenType.FINAL):
             is_final = True
             if self.verbose:
-                print("Class is final")
+                parser_log.info("Class is final")
 
         # Consume 'class' keyword
         self.consume(TokenType.CLASS, "Expected 'class' keyword")
@@ -213,7 +214,7 @@ class Parser:
         # Class name
         name = self.consume(TokenType.IDENTIFIER, "Expected class name").value
         if self.verbose:
-            print(f"Parsing class '{name}'")
+            parser_log.info(f"Parsing class '{name}'")
 
         # Optional base classes and interfaces
         bases = []  # For extended classes
@@ -221,55 +222,55 @@ class Parser:
 
         if self.match(TokenType.LPAREN):
             if self.verbose:
-                print("Parsing Python-style inheritance")
+                parser_log.info("Parsing Python-style inheritance")
             # Python-style: class Dog(Animal)
             if not self.check(TokenType.RPAREN):
                 base = self.consume(TokenType.IDENTIFIER, "Expected base class").value
                 bases.append(base)
                 if self.verbose:
-                    print(f"Added base class: {base}")
+                    parser_log.info(f"Added base class: {base}")
                 while self.match(TokenType.COMMA):
                     base = self.consume(TokenType.IDENTIFIER, "Expected base class").value
                     bases.append(base)
                     if self.verbose:
-                        print(f"Added base class: {base}")
+                        parser_log.info(f"Added base class: {base}")
             self.consume(TokenType.RPAREN, "Expected ')' after base classes")
         elif self.match(TokenType.EXTENDS):
             if self.verbose:
-                print("Parsing Java-style inheritance")
+                parser_log.info("Parsing Java-style inheritance")
             # Java-style: class Dog extends Animal
             base = self.consume(TokenType.IDENTIFIER, "Expected base class").value
             bases.append(base)
             if self.verbose:
-                print(f"Added base class: {base}")
+                parser_log.info(f"Added base class: {base}")
 
         # Handle implements keyword for interfaces
         if self.match(TokenType.IMPLEMENTS):
             if self.verbose:
-                print("Parsing implemented interfaces")
+                parser_log.info("Parsing implemented interfaces")
             # implements Interface1, Interface2, ...
             interface = self.consume(TokenType.IDENTIFIER, "Expected interface name").value
             interfaces.append(interface)
             if self.verbose:
-                print(f"Added implemented interface: {interface}")
+                parser_log.info(f"Added implemented interface: {interface}")
             while self.match(TokenType.COMMA):
                 interface = self.consume(TokenType.IDENTIFIER, "Expected interface name").value
                 interfaces.append(interface)
                 if self.verbose:
-                    print(f"Added implemented interface: {interface}")
+                    parser_log.info(f"Added implemented interface: {interface}")
 
         # Class body
         self.consume(TokenType.LBRACE, "Expected '{' after class declaration")
 
         # Parse class body
         if self.verbose:
-            print("Parsing class body")
+            parser_log.info("Parsing class body")
         body = self.parse_class_body()
 
         self.consume(TokenType.RBRACE, "Expected '}' after class body")
 
         if self.verbose:
-            print(f"Completed class '{name}' with {len(body)} members")
+            parser_log.info(f"Completed class '{name}' with {len(body)} members")
 
         return ClassDeclaration(
             name=name,
@@ -298,11 +299,11 @@ class Parser:
 
             # Parse class member
             if self.verbose:
-                print("Parsing class member")
+                parser_log.info("Parsing class member")
             stmt = self.parse_class_member()
             if stmt:
                 if self.verbose:
-                    print(f"Added class member: {type(stmt).__name__}")
+                    parser_log.info(f"Added class member: {type(stmt).__name__}")
                 body.append(stmt)
 
         return body
@@ -320,21 +321,21 @@ class Parser:
         if self.match(TokenType.STATIC):
             is_static = True
             if self.verbose:
-                print("Method is static")
+                parser_log.info("Method is static")
         elif self.match(TokenType.ABSTRACT):
             is_abstract = True
             if self.verbose:
-                print("Method is abstract")
+                parser_log.info("Method is abstract")
         elif self.match(TokenType.FINAL):
             is_final = True
             if self.verbose:
-                print("Method is final")
+                parser_log.info("Method is final")
 
         # Method declaration
         if self.match(TokenType.DEF):
             name = self.consume(TokenType.IDENTIFIER, "Expected method name").value
             if self.verbose:
-                print(f"Parsing method '{name}'")
+                parser_log.info(f"Parsing method '{name}'")
 
             # Parameters
             self.consume(TokenType.LPAREN, "Expected '(' after method name")
@@ -354,13 +355,13 @@ class Parser:
                 else:
                     raise ParseError(f"Expected return type after '->' at line {self.peek().line}")
                 if self.verbose:
-                    print(f"Method '{name}' has return type: {return_type}")
+                    parser_log.info(f"Method '{name}' has return type: {return_type}")
 
             # Method body - abstract methods don't have bodies
             body = []
             if is_abstract or is_interface:
                 if self.verbose:
-                    print(f"Registered abstract/interface method '{name}'")
+                    parser_log.info(f"Registered abstract/interface method '{name}'")
                 self.consume(TokenType.SEMICOLON, "Expected ';' after abstract method signature")
                 body.append(PassStatement(has_semicolon=True))
                 # Abstract methods end here - no body expected
@@ -368,11 +369,11 @@ class Parser:
                 # Concrete methods need a body
                 self.consume(TokenType.LBRACE, "Expected '{' after method signature")
                 if self.verbose:
-                    print(f"Parsing body of method '{name}'")
+                    parser_log.info(f"Parsing body of method '{name}'")
                 body = self.parse_method_body()
                 self.consume(TokenType.RBRACE, "Expected '}' after method body")
                 if self.verbose:
-                    print(f"Completed body of method '{name}'")
+                    parser_log.info(f"Completed body of method '{name}'")
 
             return FunctionDeclaration(
                 name=name,
@@ -388,7 +389,7 @@ class Parser:
         else:
             # Try to parse as a simple statement (e.g., assignment, expression, etc.)
             if self.verbose:
-                print("Parsing class member as simple statement")
+                parser_log.info("Parsing class member as simple statement")
             stmt = self.parse_simple_statement()
             return stmt
 
@@ -404,7 +405,7 @@ class Parser:
         name = self.consume(TokenType.IDENTIFIER, "Expected method name").value
 
         if self.verbose:
-            print(f"Parsing method signature '{name}'")
+            parser_log.info(f"Parsing method signature '{name}'")
 
         # Parameters
         self.consume(TokenType.LPAREN, "Expected '(' after method name")
@@ -423,7 +424,7 @@ class Parser:
                 raise ParseError(f"Expected return type at line {self.peek().line}")
 
             if self.verbose:
-                print(f"Method '{name}' has return type: {return_type}")
+                parser_log.info(f"Method '{name}' has return type: {return_type}")
 
         # Consume semicolon if present
         self.match(TokenType.SEMICOLON)
@@ -439,18 +440,18 @@ class Parser:
             param = self.parse_parameter()
             params.append(param)
             if self.verbose:
-                print(f"Added parameter: {param.name}" +
+                parser_log.info(f"Added parameter: {param.name}" +
                     (f" with type {param.type_annotation}" if param.type_annotation else ""))
 
             while self.match(TokenType.COMMA):
                 param = self.parse_parameter()
                 params.append(param)
                 if self.verbose:
-                    print(f"Added parameter: {param.name}" +
+                    parser_log.info(f"Added parameter: {param.name}" +
                         (f" with type {param.type_annotation}" if param.type_annotation else ""))
 
         if self.verbose:
-            print(f"Parsed {len(params)} parameters")
+            parser_log.info(f"Parsed {len(params)} parameters")
         return params
 
 
@@ -475,7 +476,7 @@ class Parser:
             # TODO: Parse expression
             default = self.advance().value
             if self.verbose:
-                print(f"Parameter {name} has default value: {default}")
+                parser_log.info(f"Parameter {name} has default value: {default}")
 
         return Parameter(name, type_annotation, default)
 
@@ -497,15 +498,15 @@ class Parser:
 
             # For now, just parse simple expression statements
             if self.verbose:
-                print("Parsing statement in method body")
+                parser_log.info("Parsing statement in method body")
             stmt = self.parse_simple_statement()
             if stmt:
                 if self.verbose:
-                    print(f"Added statement to method body: {type(stmt).__name__}")
+                    parser_log.info(f"Added statement to method body: {type(stmt).__name__}")
                 body.append(stmt)
 
         if self.verbose:
-            print(f"Method body contains {len(body)} statements")
+            parser_log.info(f"Method body contains {len(body)} statements")
         return body
 
 
@@ -515,7 +516,7 @@ class Parser:
 
         name = self.consume(TokenType.IDENTIFIER, "Expected function name").value
         if self.verbose:
-            print(f"Parsing function '{name}'")
+            parser_log.info(f"Parsing function '{name}'")
 
         # Parameters
         self.consume(TokenType.LPAREN, "Expected '(' after function name")
@@ -533,7 +534,7 @@ class Parser:
             else:
                 raise ParseError(f"Expected return type after ':' at line {self.peek().line}")
             if self.verbose:
-                print(f"Function '{name}' has return type: {return_type}")
+                parser_log.info(f"Function '{name}' has return type: {return_type}")
         elif self.match(TokenType.ARROW):
             # Handle `-> return_type` syntax
             if self.check(TokenType.IDENTIFIER):
@@ -543,16 +544,16 @@ class Parser:
             else:
                 raise ParseError(f"Expected return type after '->' at line {self.peek().line}")
             if self.verbose:
-                print(f"Function '{name}' has return type: {return_type}")
+                parser_log.info(f"Function '{name}' has return type: {return_type}")
 
         # Function body
         self.consume(TokenType.LBRACE, "Expected '{' after function signature")
         if self.verbose:
-            print(f"Parsing body of function '{name}'")
+            parser_log.info(f"Parsing body of function '{name}'")
         body = self.parse_method_body()
         self.consume(TokenType.RBRACE, "Expected '}' after function body")
         if self.verbose:
-            print(f"Completed body of function '{name}'")
+            parser_log.info(f"Completed body of function '{name}'")
 
         return FunctionDeclaration(
             name=name,
@@ -572,7 +573,7 @@ class Parser:
     def parse_statement(self, context="general"):
         """Parse a statement."""
         if self.verbose:
-            print(f"Parsing statement at token: {self.peek().type.name}")
+            parser_log.info(f"Parsing statement at token: {self.peek().type.name}")
 
         # Skip comments
         if self.check(TokenType.COMMENT):
@@ -582,55 +583,55 @@ class Parser:
         # Interface declaration
         if self.match(TokenType.INTERFACE):
             if self.verbose:
-                print("Parsing interface declaration")
+                parser_log.info("Parsing interface declaration")
             return self.parse_interface()
 
         # Class declaration with modifiers
         if self.check(TokenType.ABSTRACT, TokenType.FINAL, TokenType.CLASS):
             if self.verbose:
-                print("Parsing class declaration")
+                parser_log.info("Parsing class declaration")
             return self.parse_class()
 
         # Function declaration
         if self.match(TokenType.DEF):
             if self.verbose:
-                print("Parsing function declaration")
+                parser_log.info("Parsing function declaration")
             return self.parse_function()
 
         # Return statement at top-level (not recommended, but parseable)
         if self.match(TokenType.RETURN):
             if self.verbose:
-                print("Parsing return statement at top-level")
+                parser_log.info("Parsing return statement at top-level")
             value = None
             if not self.check(TokenType.SEMICOLON, TokenType.NEWLINE, TokenType.RBRACE):
                 value = self.parse_expression(context)
             has_semicolon = self.match(TokenType.SEMICOLON)
             if self.verbose:
-                print(f"Parsed return statement with value: {value}")
+                parser_log.info(f"Parsed return statement with value: {value}")
             from parser.ast_nodes import ReturnStatement
             return ReturnStatement(value=value, has_semicolon=has_semicolon)
 
         # Raise statement
         if self.match(TokenType.RAISE):
             if self.verbose:
-                print("Parsing raise statement")
+                parser_log.info("Parsing raise statement")
             return self.parse_raise_statement()
 
         # Import statement
         if self.check(TokenType.IMPORT, TokenType.FROM):
             if self.verbose:
-                print("Parsing import statement")
+                parser_log.info("Parsing import statement")
             return self.parse_import_statement()
 
         # Expression statement
         if self.verbose:
-            print("Parsing expression statement")
+            parser_log.info("Parsing expression statement")
         return self.parse_expression_statement()
 
     def parse_expression(self, context="general") -> Optional[Expression]:
         """Parse an expression using the clean expression parser."""
         if self.verbose:
-            print(f"Parsing expression at token: {self.peek().type.name}")
+            parser_log.info(f"Parsing expression at token: {self.peek().type.name}")
 
         expr = self.expr_parser.parse_expression()
 
@@ -642,7 +643,7 @@ class Parser:
     def parse_expression_statement(self, context="general") -> Optional[ExpressionStatement]:
         """Parse expression statement."""
         if self.verbose:
-            print("Parsing expression statement")
+            parser_log.info("Parsing expression statement")
 
         expr = self.parse_expression(context=context)
 
@@ -652,7 +653,7 @@ class Parser:
         has_semicolon = self.match(TokenType.SEMICOLON)
 
         if self.verbose and has_semicolon:
-            print("Expression has semicolon")
+            parser_log.info("Expression has semicolon")
 
         return ExpressionStatement(expression=expr, has_semicolon=has_semicolon)
 
@@ -662,13 +663,13 @@ class Parser:
         if self.match(TokenType.PASS):
             has_semicolon = self.match(TokenType.SEMICOLON)
             if self.verbose:
-                print("Parsed pass statement")
+                parser_log.info("Parsed pass statement")
             return PassStatement(has_semicolon=has_semicolon)
 
         # Return statement
         if self.match(TokenType.RETURN):
             if self.verbose:
-                print("Parsing return statement")
+                parser_log.info("Parsing return statement")
             value = None
             if not self.check(TokenType.SEMICOLON, TokenType.NEWLINE, TokenType.RBRACE):
                 value = self.parse_expression()
@@ -710,7 +711,7 @@ class Parser:
     def parse_if_statement(self) -> IfStatement:
         """Parse if statement with clean condition parsing."""
         if self.verbose:
-            print("Parsing if statement")
+            parser_log.info("Parsing if statement")
 
         # Parse condition
         condition = self.parse_expression(context="condition")
@@ -739,7 +740,7 @@ class Parser:
     def parse_while_statement(self) -> WhileStatement:
         """Parse while statement."""
         if self.verbose:
-            print("Parsing while statement")
+            parser_log.info("Parsing while statement")
 
         # Optional parentheses
         has_parens = self.match(TokenType.LPAREN)
@@ -764,7 +765,7 @@ class Parser:
     def parse_for_statement(self) -> ForStatement:
         """Parse for statement."""
         if self.verbose:
-            print("Parsing for statement")
+            parser_log.info("Parsing for statement")
 
         # Optional parentheses
         has_parens = self.match(TokenType.LPAREN)
@@ -784,7 +785,7 @@ class Parser:
     def parse_switch_statement(self) -> SwitchStatement:
         """Parse switch statement."""
         if self.verbose:
-            print("Parsing switch statement")
+            parser_log.info("Parsing switch statement")
 
         self.consume(TokenType.LPAREN, "Expected '(' after 'switch'")
 
@@ -835,7 +836,7 @@ class Parser:
 
     def parse_raise_statement(self) -> RaiseStatement:
         if self.verbose:
-            print("Parsing raise statement")
+            parser_log.info("Parsing raise statement")
 
         exception = None
 
@@ -843,12 +844,12 @@ class Parser:
         if not self.check(TokenType.SEMICOLON, TokenType.NEWLINE, TokenType.RBRACE):
             exception = self.parse_expression()
             if self.verbose and exception:
-                print(f"Parsed raise exception: {type(exception).__name__}")
+                parser_log.info(f"Parsed raise exception: {type(exception).__name__}")
 
         has_semicolon = self.match(TokenType.SEMICOLON)
 
         if self.verbose:
-            print(f"Completed raise statement (has_semicolon: {has_semicolon})")
+            parser_log.info(f"Completed raise statement (has_semicolon: {has_semicolon})")
 
         return RaiseStatement(exception=exception, has_semicolon=has_semicolon)
 
@@ -856,21 +857,21 @@ class Parser:
     def parse_import_statement(self) -> ImportStatement:
         """Parse import statement."""
         if self.verbose:
-            print("Parsing import statement")
+            parser_log.info("Parsing import statement")
 
         # Check for 'from module import names' syntax
         if self.match(TokenType.FROM):
             # from module import name1, name2, ...
             module = self.consume(TokenType.IDENTIFIER, "Expected module name after 'from'").value
             if self.verbose:
-                print(f"Parsing 'from {module} import ...'")
+                parser_log.info(f"Parsing 'from {module} import ...'")
 
             # Build module path for dotted imports
             while self.match(TokenType.DOT):
                 submodule = self.consume(TokenType.IDENTIFIER, "Expected module name after '.'").value
                 module += f".{submodule}"
                 if self.verbose:
-                    print(f"Extended module path: {module}")
+                    parser_log.info(f"Extended module path: {module}")
 
             self.consume(TokenType.IMPORT, "Expected 'import' after module name")
 
@@ -886,7 +887,7 @@ class Parser:
             if self.match(TokenType.AS):
                 alias = self.consume(TokenType.IDENTIFIER, "Expected alias after 'as'").value
                 if self.verbose:
-                    print(f"Import alias: {name} as {alias}")
+                    parser_log.info(f"Import alias: {name} as {alias}")
             aliases.append(alias)
 
             # Additional names
@@ -898,13 +899,13 @@ class Parser:
                 if self.match(TokenType.AS):
                     alias = self.consume(TokenType.IDENTIFIER, "Expected alias after 'as'").value
                     if self.verbose:
-                        print(f"Import alias: {name} as {alias}")
+                        parser_log.info(f"Import alias: {name} as {alias}")
                 aliases.append(alias)
 
             has_semicolon = self.match(TokenType.SEMICOLON)
 
             if self.verbose:
-                print(f"Parsed from import: from {module} import {', '.join(names)}")
+                parser_log.info(f"Parsed from import: from {module} import {', '.join(names)}")
 
             return ImportStatement(
                 module=module,
@@ -918,26 +919,26 @@ class Parser:
             # import module
             module = self.consume(TokenType.IDENTIFIER, "Expected module name after 'import'").value
             if self.verbose:
-                print(f"Parsing 'import {module}'")
+                parser_log.info(f"Parsing 'import {module}'")
 
             # Build module path for dotted imports
             while self.match(TokenType.DOT):
                 submodule = self.consume(TokenType.IDENTIFIER, "Expected module name after '.'").value
                 module += f".{submodule}"
                 if self.verbose:
-                    print(f"Extended module path: {module}")
+                    parser_log.info(f"Extended module path: {module}")
 
             # Optional alias
             alias = None
             if self.match(TokenType.AS):
                 alias = self.consume(TokenType.IDENTIFIER, "Expected alias after 'as'").value
                 if self.verbose:
-                    print(f"Import alias: {module} as {alias}")
+                    parser_log.info(f"Import alias: {module} as {alias}")
 
             has_semicolon = self.match(TokenType.SEMICOLON)
 
             if self.verbose:
-                print(f"Parsed import: import {module}" + (f" as {alias}" if alias else ""))
+                parser_log.info(f"Parsed import: import {module}" + (f" as {alias}" if alias else ""))
 
             return ImportStatement(
                 module=module,

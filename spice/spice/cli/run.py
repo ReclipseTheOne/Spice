@@ -13,6 +13,8 @@ from parser.parser import Parser
 from transformer.transformer import Transformer
 from errors import SpiceError
 
+from printils import spice_runner_log
+
 
 @click.command()
 @click.argument('source', type=click.Path(exists=True))
@@ -23,7 +25,7 @@ def run(source: str, verbose: bool, keep_temp: bool):
     source_path = Path(source)
 
     if not source_path.suffix == '.spc':
-        click.echo(f"Error: Expected .spc file, got {source_path.suffix}", err=True)
+        click.echo(f"Expected .spc file, got {source_path.suffix}", err=True)
         sys.exit(1)
 
     try:        # Create temporary Python file
@@ -31,15 +33,15 @@ def run(source: str, verbose: bool, keep_temp: bool):
             temp_path = Path(temp_file.name)
 
             if verbose:
-                click.echo(f"🚀 Running {source_path}...")
-                click.echo(f"📝 Temporary Python file: {temp_path}")
+                spice_runner_log.info(f"Running {source_path}...")
+                spice_runner_log.info(f"Temporary Python file: {temp_path}")
 
             # Compile Spice to python
             compile_Spice_file(source_path, temp_path, verbose)
 
             # Execute the Python file
             if verbose:
-                click.echo(f"⚡ Executing compiled Python...")
+                spice_runner_log.info(f"Executing compiled Python...")
 
             result = subprocess.run([sys.executable, str(temp_path)],
                                   capture_output=False, text=True)
@@ -51,15 +53,15 @@ def run(source: str, verbose: bool, keep_temp: bool):
                 except:
                     pass  # Ignore cleanup errors
             else:
-                click.echo(f"📁 Temporary file kept at: {temp_path}")
+                spice_runner_log.info(f"Temporary file kept at: {temp_path}")
 
             sys.exit(result.returncode)
 
     except SpiceError as e:
-        click.echo(f"Compilation error: {e}", err=True)
+        spice_runner_log.error(f"Compilation error: {e}")
         sys.exit(1)
     except Exception as e:
-        click.echo(f"Runtime error: {e}", err=True)
+        spice_runner_log.error(f"Runtime error: {e}")
         sys.exit(1)
 
 
@@ -70,13 +72,13 @@ def compile_Spice_file(source_path: Path, output_path: Path, verbose: bool):
         source_code = f.read()
 
     # Compilation pipeline
-    lexer = Lexer()
+    lexer = Lexer(verbose=verbose)
     tokens = lexer.tokenize(source_code)
 
-    parser = Parser()
+    parser = Parser(verbose=verbose)
     ast = parser.parse(tokens)
 
-    transformer = Transformer()
+    transformer = Transformer(verbose=verbose)
     python_code = transformer.transform(ast)
 
     # Write compiled Python

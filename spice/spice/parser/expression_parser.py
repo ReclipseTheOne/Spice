@@ -11,6 +11,8 @@ from parser.ast_nodes import (
 )
 from errors import ParserError
 
+from printils import expression_parser_log
+
 
 class ExpressionParser:
     from parser.parser import Parser
@@ -256,19 +258,19 @@ class ExpressionParser:
             # alpha.beta
             if self.parser.match(TokenType.DOT):
                 if self.parser.verbose:
-                    print("Parsing postfix .")
+                    expression_parser_log.info("Parsing postfix .")
 
                 if not self.parser.check(TokenType.IDENTIFIER):
                     raise ParserError("Expected attribute name after '.'")
                 else:
-                    print("Found attribute: ", self.parser.peek().value)
+                    if self.parser.verbose: expression_parser_log.info("Found attribute: ", self.parser.peek().value)
                 attr = self.parser.advance().value
                 expr = AttributeExpression(object=expr, attribute=attr)
 
             # alpha()
             elif self.parser.match(TokenType.LPAREN):
                 if self.parser.verbose:
-                    print("Parsing postfix ()")
+                    expression_parser_log.info("Parsing postfix ()")
 
                 # Function/method call
                 args = self.parse_arguments()
@@ -278,7 +280,7 @@ class ExpressionParser:
             # alpha[]
             elif self.parser.match(TokenType.LBRACKET):
                 if self.parser.verbose:
-                    print("Parsing postfix []")
+                    expression_parser_log.info("Parsing postfix []")
 
                 # Parse the index/slice expression
                 index_expr = self.parse_subscript_or_slice()
@@ -615,17 +617,17 @@ class ExpressionParser:
 
         if not flag1:
             if self.parser.verbose:
-                print("Not enough tokens to form a dictionary entry")
+                expression_parser_log.info("Not enough tokens to form a dictionary entry")
             return False
 
         if not flag2:
             if self.parser.verbose:
-                print("Next token is not a valid dictionary key: ", self.parser.tokens[current_pos])
+                expression_parser_log.info("Next token is not a valid dictionary key: ", self.parser.tokens[current_pos])
             return False
 
         if not flag3:
             if self.parser.verbose:
-                print("Next token is not a colon after key: ", self.parser.tokens[current_pos + 1])
+                expression_parser_log.info("Next token is not a colon after key: ", self.parser.tokens[current_pos + 1])
             return False
 
         return True

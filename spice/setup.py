@@ -16,7 +16,8 @@ setup(
     python_requires=">=3.8",
     install_requires=[
         "click>=8.0",
-        "colorama>=0.4"
+        "colorama>=0.4",
+        "rites>=0.5"
     ],
     extras_require={
         "dev": [

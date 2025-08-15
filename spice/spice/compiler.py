@@ -10,6 +10,7 @@ from transformer.transformer import Transformer
 from styping.type_system import TypeChecker, TypeEnforcement
 from errors import SpiceError
 
+from printils import spice_compiler_log
 
 class SpiceCompiler:
     """Enhanced Spice compiler with type checking."""
@@ -52,10 +53,10 @@ class SpiceCompiler:
             if self.type_enforcement == TypeEnforcement.STRICT:
                 raise SpiceError(f"Type error: {error}")
             else:  # WARNINGS
-                click.echo(f"Type warning: {error}", err=True)
+                spice_compiler_log.warning(f"Type warning: {error}")
 
         for warning in self.type_checker.warnings:
-            click.echo(f"Type hint: {warning}", err=True)
+            spice_compiler_log.warning(f"Type hint: {warning}")
 
     def _add_runtime_checks(self, python_code: str) -> str:
         """Add runtime type checking to generated Python code."""
@@ -104,14 +105,14 @@ def compile_with_types(source: str, type_check: str, output: Optional[str], verb
             f.write(result)
 
         if verbose:
-            click.echo(f"Compiled {source_path} -> {output_path}")
+            spice_compiler_log.success(f"Compiled {source_path} -> {output_path}")
             if enforcement == TypeEnforcement.STRICT:
-                click.echo("Strict type checking enabled")
+                spice_compiler_log.info("Strict type checking enabled")
             elif enforcement == TypeEnforcement.WARNINGS:
-                click.echo("Type warnings enabled")
+                spice_compiler_log.info("Type warnings enabled")
 
     except SpiceError as e:
-        click.echo(f"Compilation failed: {e}", err=True)
+        spice_compiler_log.error(f"Compilation failed: {e}")
         return 1
 
     return 0
