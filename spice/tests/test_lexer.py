@@ -1,7 +1,7 @@
 """Tests for the Spice lexer."""
 
 import pytest
-from lexer import Lexer, TokenType
+from spice.lexer import Lexer, TokenType
 from testutils import (
     assert_contains_all, assert_count, log_test_start,
     log_test_result, safe_assert

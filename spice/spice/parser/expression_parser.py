@@ -1,21 +1,21 @@
 """Restructured expression parsing methods for the Spice parser."""
 
 from typing import Optional, List
-from lexer import TokenType
-from parser.ast_nodes import (
+from spice.lexer import TokenType
+from spice.parser.ast_nodes import (
     Expression, AssignmentExpression, BinaryExpression, UnaryExpression,
     LogicalExpression, CallExpression, AttributeExpression,
     IdentifierExpression, LiteralExpression, ArgumentExpression,
     SubscriptExpression, SliceExpression, ComprehensionExpression,
     DictEntry
 )
-from errors import ParserError
+from spice.errors import ParserError
 
-from printils import expression_parser_log
+from spice.printils import expression_parser_log
 
 
 class ExpressionParser:
-    from parser.parser import Parser
+    from spice.parser.parser import Parser
     """
     Clean expression parser using recursive descent with explicit precedence levels.
 

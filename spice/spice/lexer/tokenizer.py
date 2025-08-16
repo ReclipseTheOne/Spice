@@ -2,10 +2,10 @@
 
 import re
 from typing import List
-from lexer.follow_set import check, IllegalFollow
-from lexer.tokens import Token, TokenType
+from spice.lexer.follow_set import check, IllegalFollow
+from spice.lexer.tokens import Token, TokenType
 
-from printils import lexer_log
+from spice.printils import lexer_log
 
 class Lexer:
     """Tokenizes Spice source code."""

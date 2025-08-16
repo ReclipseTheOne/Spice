@@ -4,13 +4,13 @@ import click
 from pathlib import Path
 from typing import Optional
 
-from lexer import Lexer
-from parser.parser import Parser
-from transformer.transformer import Transformer
-from styping.type_system import TypeChecker, TypeEnforcement
-from errors import SpiceError
+from spice.lexer import Lexer
+from spice.parser.parser import Parser
+from spice.transformer.transformer import Transformer
+from spice.styping.type_system import TypeChecker, TypeEnforcement
+from spice.errors import SpiceError
 
-from printils import spice_compiler_log
+from spice.printils import spice_compiler_log
 
 class SpiceCompiler:
     """Enhanced Spice compiler with type checking."""
@@ -60,7 +60,7 @@ class SpiceCompiler:
 
     def _add_runtime_checks(self, python_code: str) -> str:
         """Add runtime type checking to generated Python code."""
-        from styping.type_system import create_runtime_type_checker
+        from spice.styping.type_system import create_runtime_type_checker
 
         runtime_checks = create_runtime_type_checker()
 

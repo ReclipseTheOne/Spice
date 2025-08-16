@@ -6,12 +6,12 @@ import sys
 from pathlib import Path
 from typing import Optional
 
-from lexer import Lexer
-from parser.parser import Parser
-from transformer.transformer import Transformer
-from errors import SpiceError
+from spice.lexer import Lexer
+from spice.parser.parser import Parser
+from spice.transformer.transformer import Transformer
+from spice.errors import SpiceError
 
-from printils import spice_compiler_log
+from spice.printils import spice_compiler_log
 
 
 def add_runtime_type_checks(python_code: str) -> str:
@@ -83,12 +83,14 @@ def main(source: str, output: Optional[str], check: bool, watch: bool, verbose: 
 
     except SpiceError as e:
         spice_compiler_log.error(f"Compilation error: {e}")
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
+        
     except Exception as e:
         spice_compiler_log.error(f"Unexpected error: {e}")
-        if verbose:
-            import traceback
-            traceback.print_exc()
+        import traceback
+        traceback.print_exc()
         sys.exit(1)
 
 

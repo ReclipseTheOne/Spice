@@ -1,8 +1,8 @@
 """Tests for the Spice to Python transformer."""
 
-from lexer import Lexer
-from parser import Parser
-from transformer import Transformer
+from spice.lexer import Lexer
+from spice.parser import Parser
+from spice.transformer import Transformer
 from testutils import (
     presentIn, assert_contains_all, assert_count,
     log_test_start, log_test_result, debug_diff, safe_assert,

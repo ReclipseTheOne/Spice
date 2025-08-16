@@ -1,17 +1,17 @@
 """Tests specifically for class keywords functionality."""
 
-from lexer import Lexer
-from parser import Parser
-from transformer import Transformer
+from spice.lexer import Lexer
+from spice.parser import Parser
+from spice.transformer import Transformer
 from testutils import (
-    presentIn, assert_contains_all, assert_count, 
+    presentIn, assert_contains_all, assert_count,
     log_test_start, log_test_result, debug_diff, safe_assert
 )
 
 
 class TestClassKeywords:
     """Test class keywords functionality (abstract, final, static, extends, implements)."""
-    
+
     def transform_source(self, source: str) -> str:
         """Helper to transform source code."""
         try:
@@ -34,7 +34,7 @@ class TestClassKeywords:
         """Test basic abstract class with abstract methods."""
         source = """abstract class Animal {
     abstract def make_sound() -> str;
-    
+
     def eat() -> None {
         pass;
     }
@@ -81,11 +81,11 @@ class TestClassKeywords:
     static def add(a: int, b: int) -> int {
         pass;
     }
-    
+
     def instance_method(self) -> None {
         pass;
     }
-    
+
     static def multiply(x: float, y: float) -> float {
         pass;
     }
@@ -153,7 +153,7 @@ class Duck implements Flyable, Swimmable {
     def fly() -> None {
         pass;
     }
-    
+
     def swim() -> None {
         pass;
     }
@@ -193,11 +193,11 @@ class Rectangle extends Shape implements Drawable, Colorable {
     def draw() -> None {
         pass;
     }
-    
+
     def set_color(self, color: str) -> None {
         pass;
     }
-    
+
     def get_area(self) -> float {
         pass;
     }
@@ -226,11 +226,11 @@ class Rectangle extends Shape implements Drawable, Colorable {
     final def get_species() -> str {
         pass;
     }
-    
+
     def make_sound() -> str {
         pass;
     }
-    
+
     final def get_kingdom() -> str {
         pass;
     }
@@ -265,11 +265,11 @@ interface Serializable {
 
 abstract class Shape {
     abstract def area() -> float;
-    
+
     final def describe() -> str {
         pass;
     }
-    
+
     static def get_pi() -> float {
         pass;
     }
@@ -279,19 +279,19 @@ final class Circle extends Shape implements Drawable, Serializable {
     def area(self) -> float {
         pass;
     }
-    
+
     def draw() -> None {
         pass;
     }
-    
+
     def serialize(self) -> str {
         pass;
     }
-    
+
     static def create_unit_circle() -> None {
         pass;
     }
-    
+
     final def get_diameter(self) -> float {
         pass;
     }
@@ -339,7 +339,7 @@ class MyClass {
     def method() -> None {
         pass;
     }
-    
+
     static def static_method() -> None {
         pass;
     }

@@ -1,7 +1,7 @@
 """Transform Spice AST to Python code."""
 
 # Import line will be very long but CTRL + Click doesn't work on * imports and I hate it
-from parser import (
+from spice.parser import (
     Module, InterfaceDeclaration, MethodSignature, ClassDeclaration,
     FunctionDeclaration, ExpressionStatement, PassStatement,
     AssignmentExpression, IdentifierExpression, AttributeExpression,
@@ -11,7 +11,7 @@ from parser import (
     ImportStatement, DictEntry, SubscriptExpression, ComprehensionExpression
 )
 
-from printils import transformer_log
+from spice.printils import transformer_log
 
 
 class Transformer:

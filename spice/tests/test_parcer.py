@@ -1,9 +1,9 @@
 """Tests for the Spice parser."""
 
 import pytest
-from lexer import Lexer
-from parser import Parser
-from parser.ast_nodes import InterfaceDeclaration
+from spice.lexer import Lexer
+from spice.parser import Parser
+from spice.parser.ast_nodes import InterfaceDeclaration
 from testutils import (
     assert_contains_all, assert_count, log_test_start,
     log_test_result, safe_assert

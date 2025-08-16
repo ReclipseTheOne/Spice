@@ -9,8 +9,8 @@ setup(
     package_dir={"": "spice"},
     entry_points={
         "console_scripts": [
-            "spicy=cli.__main__:main",
-            "spice=cli.run:run"
+            "spicy=spice.cli.__main__:main",
+            "spice=spice.cli.run:run"
         ]
     },
     python_requires=">=3.8",

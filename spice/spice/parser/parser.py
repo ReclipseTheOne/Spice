@@ -1,16 +1,16 @@
 """Parser for Spice language."""
 
 from typing import List, Optional, Any
-from lexer import Token, TokenType
-from parser.ast_nodes import (
+from spice.lexer import Token, TokenType
+from spice.parser.ast_nodes import (
     Module, InterfaceDeclaration, MethodSignature, Parameter,
     ExpressionStatement, PassStatement, Expression, ReturnStatement,
     IfStatement, ForStatement, WhileStatement, SwitchStatement, CaseClause,
     RaiseStatement, ImportStatement
 )
-from errors import SpiceError
+from spice.errors import SpiceError
 
-from printils import parser_log
+from spice.printils import parser_log
 
 class ParseError(SpiceError):
     """Parser error."""
@@ -26,7 +26,7 @@ class Parser:
         self.current = 0
 
         # Extensions
-        from parser.expression_parser import ExpressionParser
+        from spice.parser.expression_parser import ExpressionParser
         self.expr_parser = ExpressionParser(self)
 
     def match(self, *types: TokenType, advance_at_newline: bool = False) -> bool:
@@ -193,7 +193,7 @@ class Parser:
 
     def parse_class(self):
         """Parse class declaration."""
-        from parser.ast_nodes import ClassDeclaration
+        from spice.parser.ast_nodes import ClassDeclaration
 
         # Handle modifiers
         is_abstract = False
@@ -311,7 +311,7 @@ class Parser:
 
     def parse_class_member(self, is_interface: bool = False):
         """Parse a class member (method or field)."""
-        from parser.ast_nodes import FunctionDeclaration
+        from spice.parser.ast_nodes import FunctionDeclaration
 
         # Check for static modifier
         is_static = False
@@ -512,7 +512,7 @@ class Parser:
 
     def parse_function(self):
         """Parse function declaration."""
-        from parser.ast_nodes import FunctionDeclaration
+        from spice.parser.ast_nodes import FunctionDeclaration
 
         name = self.consume(TokenType.IDENTIFIER, "Expected function name").value
         if self.verbose:
@@ -608,7 +608,7 @@ class Parser:
             has_semicolon = self.match(TokenType.SEMICOLON)
             if self.verbose:
                 parser_log.info(f"Parsed return statement with value: {value}")
-            from parser.ast_nodes import ReturnStatement
+            from spice.parser.ast_nodes import ReturnStatement
             return ReturnStatement(value=value, has_semicolon=has_semicolon)
 
         # Raise statement
@@ -719,7 +719,7 @@ class Parser:
             raise ParseError("Expected condition after 'if'")
 
         # Validate it's not an assignment
-        from parser.ast_nodes import AssignmentExpression
+        from spice.parser.ast_nodes import AssignmentExpression
         if isinstance(condition, AssignmentExpression):
             raise ParseError("Assignment expressions are not allowed as 'if' conditions")
 
@@ -753,7 +753,7 @@ class Parser:
             self.consume(TokenType.RPAREN, "Expected ')' after while condition")
 
         # Validate it's not an assignment
-        from parser.ast_nodes import AssignmentExpression
+        from spice.parser.ast_nodes import AssignmentExpression
         if isinstance(condition, AssignmentExpression):
             raise ParseError("Assignment expressions are not allowed as 'while' conditions")
 

@@ -8,12 +8,12 @@ import subprocess
 from pathlib import Path
 from typing import Optional
 
-from lexer import Lexer
-from parser.parser import Parser
-from transformer.transformer import Transformer
-from errors import SpiceError
+from spice.lexer import Lexer
+from spice.parser.parser import Parser
+from spice.transformer.transformer import Transformer
+from spice.errors import SpiceError
 
-from printils import spice_runner_log
+from spice.printils import spice_runner_log
 
 
 @click.command()

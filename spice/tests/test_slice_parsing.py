@@ -1,8 +1,8 @@
 """Tests for slice expression parsing in the Spice parser."""
 
-from lexer import Lexer
-from parser import Parser
-from parser.ast_nodes import (
+from spice.lexer import Lexer
+from spice.parser import Parser
+from spice.parser.ast_nodes import (
     Module, ExpressionStatement, SubscriptExpression, SliceExpression,
     IdentifierExpression, LiteralExpression
 )
@@ -227,7 +227,7 @@ class TestSliceParsing:
         assert isinstance(expr, SubscriptExpression)
 
         # Object should be a call expression
-        from parser.ast_nodes import CallExpression
+        from spice.parser.ast_nodes import CallExpression
         assert isinstance(expr.object, CallExpression)
 
         # Index should be a slice

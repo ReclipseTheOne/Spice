@@ -6,7 +6,7 @@ The FOLLOW_SET should NOT be used as a final check for syntax.
 This is just filter for broad verification
 """
 
-from lexer.tokens import TokenType
+from spice.lexer.tokens import TokenType
 from typing import Optional
 
 FOLLOW_SET = {

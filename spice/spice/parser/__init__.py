@@ -1,8 +1,8 @@
 """Parser module for Spice language."""
 
-from parser.parser import Parser
+from spice.parser.parser import Parser
 
 # The only place where I'll actaully use *
-from parser.ast_nodes import *
+from spice.parser.ast_nodes import *
 
 __all__ = ['Parser']
