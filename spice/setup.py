@@ -9,15 +9,15 @@ setup(
     package_dir={"": "spice"},
     entry_points={
         "console_scripts": [
-            "spicy=spice.cli.__main__:main",
-            "spice=spice.cli.run:run"
+            "spicy=spice.cli.compiler:run",
+            "spice=spice.cli.runner:run"
         ]
     },
     python_requires=">=3.8",
     install_requires=[
         "click>=8.0",
         "colorama>=0.4",
-        "rites>=0.5"
+        "rites>=0.5.3"
     ],
     extras_require={
         "dev": [

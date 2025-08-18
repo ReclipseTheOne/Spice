@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Direct execution of .spc files."""
+"""Spice CLI - Spice runner."""
 
 import click
 import sys
@@ -19,8 +19,10 @@ from spice.printils import spice_runner_log
 @click.command()
 @click.argument('source', type=click.Path(exists=True))
 @click.option('-v', '--verbose', is_flag=True, help='Verbose output')
-@click.option('--keep-temp', is_flag=True, help='Keep temporary Python file for debugging')
-def run(source: str, verbose: bool, keep_temp: bool):
+@click.option('-t', '--type-check', type=click.Choice(['none', 'warnings', 'strict'], case_sensitive=False), help='Type checking level - none, warnings (default), strict'),
+@click.option('-nf', '--no-final-check', is_flag=True, help='Skip final type checks at compilation')
+@click.option('-kt', '--keep-temp', is_flag=True, help='Keep temporary Python file for debugging')
+def run(source: str, verbose: bool, keep_temp: bool, type_check: Optional[str], no_final_check: bool):
     """Run a .spc file directly without creating permanent Python files."""
     source_path = Path(source)
 
@@ -84,7 +86,3 @@ def compile_Spice_file(source_path: Path, output_path: Path, verbose: bool):
     # Write compiled Python
     with open(output_path, 'w', encoding='utf-8') as f:
         f.write(python_code)
-
-
-if __name__ == '__main__':
-    run()

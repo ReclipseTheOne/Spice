@@ -71,7 +71,7 @@ FOLLOW_SET = {
     # "key": value (dictionary literals)
     TokenType.STRING: {
         TokenType.SEMICOLON, TokenType.RPAREN, TokenType.COMMA, TokenType.LBRACE,
-        TokenType.RBRACKET, TokenType.RBRACE, TokenType.COLON
+        TokenType.RBRACKET, TokenType.RBRACE, TokenType.COLON, TokenType.IN
     },
 
 
@@ -130,7 +130,7 @@ FOLLOW_SET = {
         TokenType.ABSTRACT, TokenType.CLASS, TokenType.DEF, TokenType.FINAL, TokenType.INTERFACE,
         TokenType.IDENTIFIER, TokenType.PASS, TokenType.RETURN, TokenType.IF, TokenType.FOR, TokenType.WHILE,
         TokenType.SWITCH, TokenType.RBRACE, TokenType.COMMENT, TokenType.EOF, TokenType.NEWLINE, TokenType.STATIC,
-        TokenType.RAISE, TokenType.IMPORT, TokenType.STRING
+        TokenType.RAISE, TokenType.IMPORT, TokenType.STRING, TokenType.RPAREN
     },
 
     # -> None:
@@ -273,9 +273,8 @@ FOLLOW_SET = {
     },
 
     # raise ValueError
-    # raise Exception("message")
     TokenType.RAISE: {
-        TokenType.IDENTIFIER, TokenType.STRING
+        TokenType.IDENTIFIER
     },
 
     # import module

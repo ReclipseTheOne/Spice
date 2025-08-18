@@ -351,3 +351,13 @@ class ComprehensionExpression(Expression):
 
     def accept(self, visitor):
         return visitor.visit_ComprehensionExpression(self)
+
+@dataclass
+class FinalDeclaration(ASTNode):
+    """Final variable declaration that cannot be reassigned."""
+    target: Expression
+    value: Expression
+    type_annotation: Optional[str] = None
+    
+    def accept(self, visitor):
+        return visitor.visit_FinalDeclaration(self)

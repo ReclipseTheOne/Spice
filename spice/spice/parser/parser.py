@@ -6,7 +6,7 @@ from spice.parser.ast_nodes import (
     Module, InterfaceDeclaration, MethodSignature, Parameter,
     ExpressionStatement, PassStatement, Expression, ReturnStatement,
     IfStatement, ForStatement, WhileStatement, SwitchStatement, CaseClause,
-    RaiseStatement, ImportStatement
+    RaiseStatement, ImportStatement, FinalDeclaration
 )
 from spice.errors import SpiceError
 
@@ -85,9 +85,7 @@ class Parser:
                                 (f" '{token.value}'" if token.value is not None else ""))
             return token
 
-        if self.verbose:
-            parser_log.error(f"{message} - found {self.peek().type.name} instead")
-        raise ParseError(f"{message} at line {self.peek().line}")
+        raise ParseError(f"{message} at line {self.peek().line} - found {self.peek().type.name} instead")
 
     def get_tokens(self, start: int = -1, size: Optional[int] = None) -> List[Token]:
         """Get a slice of tokens from start to end."""
@@ -635,7 +633,7 @@ class Parser:
 
         expr = self.expr_parser.parse_expression()
 
-        if expr is None and self.verbose:
+        if expr is None:
             raise ParseError(f"Could not parse expression at line {self.peek().line}")
 
         return expr
@@ -665,6 +663,10 @@ class Parser:
             if self.verbose:
                 parser_log.info("Parsed pass statement")
             return PassStatement(has_semicolon=has_semicolon)
+        
+        # Final declaration
+        if self.match(TokenType.FINAL):
+            return self.parse_final_declaration()
 
         # Return statement
         if self.match(TokenType.RETURN):
@@ -707,6 +709,53 @@ class Parser:
             return ExpressionStatement(expression=expr, has_semicolon=has_semicolon)
 
         return None
+
+    def parse_final_declaration(self) -> FinalDeclaration:
+        """Parse final variable declaration."""
+        if self.verbose:
+            parser_log.info("Parsing final variable declaration")
+        
+        # Parse the identifier
+        if not self.check(TokenType.IDENTIFIER):
+            raise ParseError("Expected identifier after 'final'")
+        
+        identifier = self.parse_expression()
+        
+        # Optional type annotation
+        type_annotation = None
+        if self.match(TokenType.COLON):
+            # Parse type annotation
+            type_parts = []
+            while not self.check(TokenType.ASSIGN, TokenType.SEMICOLON, TokenType.NEWLINE):
+                if self.check(TokenType.IDENTIFIER):
+                    type_parts.append(self.advance().value)
+                elif self.match(TokenType.LBRACKET):
+                    type_parts.append('[')
+                    # Handle generic types like List[int]
+                    while not self.check(TokenType.RBRACKET):
+                        if self.check(TokenType.IDENTIFIER):
+                            type_parts.append(self.advance().value)
+                        elif self.match(TokenType.COMMA):
+                            type_parts.append(', ')
+                    self.consume(TokenType.RBRACKET, "Expected ']'")
+                    type_parts.append(']')
+                else:
+                    break
+            type_annotation = ''.join(type_parts)
+        
+        # Must have assignment for final variables
+        if not self.match(TokenType.ASSIGN):
+            raise ParseError("Final variables must be initialized")
+        
+        # Parse the value
+        value = self.parse_expression()
+        if value is None:
+            raise ParseError("Expected value in final declaration")
+        
+        # Consume optional semicolon
+        self.match(TokenType.SEMICOLON)
+        
+        return FinalDeclaration(target=identifier, value=value, type_annotation=type_annotation)
 
     def parse_if_statement(self) -> IfStatement:
         """Parse if statement with clean condition parsing."""

@@ -8,7 +8,8 @@ from spice.parser import (
     LiteralExpression, CallExpression, ForStatement, WhileStatement,
     BinaryExpression, ReturnStatement, IfStatement, SwitchStatement,
     CaseClause, LogicalExpression, UnaryExpression, RaiseStatement,
-    ImportStatement, DictEntry, SubscriptExpression, ComprehensionExpression
+    ImportStatement, DictEntry, SubscriptExpression, ComprehensionExpression,
+    FinalDeclaration
 )
 
 from spice.printils import transformer_log
@@ -686,6 +687,32 @@ class Transformer:
         elif node.comp_type == 'dict':
             self.output.append(f"{{{comp_str}}}")
 
+    def visit_FinalDeclaration(self, node: FinalDeclaration):
+        """Transform final variable declaration to Python with runtime checks."""
+        if self.verbose:
+            transformer_log.custom("transform", "Transforming final declaration")
+        
+        # Generate the variable assignment
+        target_str = self.expr_to_str(node.target)
+        value_str = self.expr_to_str(node.value)
+        
+        # Add type annotation if present
+        if node.type_annotation:
+            self.output.append(self._indent(f"{target_str}: {node.type_annotation} = {value_str}\n"))
+        else:
+            self.output.append(self._indent(f"{target_str} = {value_str}\n"))
+        
+        # Store final variable name for compile-time checking
+        if not hasattr(self, 'final_variables'):
+            self.final_variables = set()
+        
+        if isinstance(node.target, IdentifierExpression):
+            self.final_variables.add(node.target.name)
+        
+        # Add runtime protection (optional, can be enabled with a flag)
+        if self.enable_runtime_final_checks:
+            self._add_final_runtime_check(target_str)
+
     ### Helper methods ###
     def expr_to_str(self, expr):
         """Helper to get code for an expression node as a string."""
@@ -722,3 +749,17 @@ class Transformer:
         """Add a new line and increase the indentation level."""
         self.indent_level += 1
         self.output.append("\n" + self._indent(""))
+
+    def _add_final_runtime_check(self, var_name: str):
+        """Add runtime check to prevent reassignment of final variables."""
+        # This creates a property-based protection
+        protection_code = f"""
+# Runtime protection for final variable {var_name}
+_final_{var_name} = {var_name}
+def _get_{var_name}():
+    return _final_{var_name}
+def _set_{var_name}(value):
+    raise TypeError("Cannot reassign final variable '{var_name}'")
+{var_name} = property(_get_{var_name}, _set_{var_name})
+"""
+        self.output.append(self._indent(protection_code))

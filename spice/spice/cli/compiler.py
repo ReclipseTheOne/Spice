@@ -55,13 +55,14 @@ def typed(func):
 @click.argument('source', type=click.Path(exists=True))
 @click.option('-o', '--output', type=click.Path(), help='Output file (default: <source>.py)')
 @click.option('-c', '--check', is_flag=True, help='Check syntax without generating output')
-@click.option('-w', '--watch', is_flag=True, help='Watch file for changes')
+@click.option('-w', '--watch', is_flag=True, help='Watch file for changes. This option disables verbosity.')
 @click.option('-v', '--verbose', is_flag=True, help='Verbose output')
-@click.option('--type-check', type=click.Choice(['none', 'warnings', 'strict']),
+@click.option('-t', '--type-check', type=click.Choice(['none', 'warnings', 'strict']),
               default='none', help='Type checking level (default: none)')
+@click.option('-nf', '--no-final-check', is_flag=True, help='Skip final type checks at compilation')
 @click.option('--runtime-checks', is_flag=True, help='Add runtime type checking to output')
 @click.version_option(version='0.1.0', prog_name='spicy')
-def main(source: str, output: Optional[str], check: bool, watch: bool, verbose: bool, type_check: str, runtime_checks: bool):
+def run(source: str, output: Optional[str], check: bool, watch: bool, verbose: bool, type_check: str, no_final_check: bool, runtime_checks: bool):
     """Compile Spice (.spc) files to Python."""
     source_path = Path(source)
 
@@ -75,7 +76,7 @@ def main(source: str, output: Optional[str], check: bool, watch: bool, verbose: 
         output_path = Path(output)
 
     try:
-        compile_file(source_path, output_path, check, verbose, type_check, runtime_checks)
+        compile_file(source_path, output_path, check, verbose, type_check, no_final_check, runtime_checks)
 
         if watch:
             spice_compiler_log.info(f"Watching {source_path} for changes... (Ctrl+C to stop)")
@@ -94,7 +95,7 @@ def main(source: str, output: Optional[str], check: bool, watch: bool, verbose: 
         sys.exit(1)
 
 
-def compile_file(source_path: Path, output_path: Path, check_only: bool, verbose: bool, type_check: str = 'none', runtime_checks: bool = False):
+def compile_file(source_path: Path, output_path: Path, check_only: bool, verbose: bool, type_check: str = 'none', no_final_check: bool = False, runtime_checks: bool = False):
     """Compile a single .spc file to Python."""
     spice_compiler_log.info(f"Starting compilation of {source_path}")
 
@@ -190,4 +191,4 @@ def compile_file(source_path: Path, output_path: Path, check_only: bool, verbose
     spice_compiler_log.success("Compilation completed successfully!")
 
 if __name__ == '__main__':
-    main()
+    run()
