@@ -33,17 +33,14 @@ def run(source: str, verbose: bool, keep_temp: bool, type_check: Optional[str], 
     try:        # Create temporary Python file
         with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as temp_file:
             temp_path = Path(temp_file.name)
-
-            if verbose:
-                spice_runner_log.info(f"Running {source_path}...")
-                spice_runner_log.info(f"Temporary Python file: {temp_path}")
+            spice_runner_log.info(f"Running {source_path}...")
+            spice_runner_log.info(f"Temporary Python file: {temp_path}")
 
             # Compile Spice to python
-            compile_Spice_file(source_path, temp_path, verbose)
+            compile_Spice_file(source_path, temp_path)
 
             # Execute the Python file
-            if verbose:
-                spice_runner_log.info(f"Executing compiled Python...")
+            spice_runner_log.info(f"Executing compiled Python...")
 
             result = subprocess.run([sys.executable, str(temp_path)],
                                   capture_output=False, text=True)
@@ -67,20 +64,20 @@ def run(source: str, verbose: bool, keep_temp: bool, type_check: Optional[str], 
         sys.exit(1)
 
 
-def compile_Spice_file(source_path: Path, output_path: Path, verbose: bool):
+def compile_Spice_file(source_path: Path, output_path: Path):
     """Compile a .spc file to Python."""
     # Read source
     with open(source_path, 'r', encoding='utf-8') as f:
         source_code = f.read()
 
     # Compilation pipeline
-    lexer = Lexer(verbose=verbose)
+    lexer = Lexer()
     tokens = lexer.tokenize(source_code)
 
-    parser = Parser(verbose=verbose)
+    parser = Parser()
     ast = parser.parse(tokens)
 
-    transformer = Transformer(verbose=verbose)
+    transformer = Transformer()
     python_code = transformer.transform(ast)
 
     # Write compiled Python

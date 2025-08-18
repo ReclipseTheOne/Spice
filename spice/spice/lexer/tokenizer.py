@@ -130,43 +130,38 @@ class Lexer:
         (r'[a-zA-Z_][a-zA-Z0-9_]*', TokenType.IDENTIFIER),
     ]
 
-    def __init__(self, verbose: bool = False):
-        self.verbose = verbose
+    def __init__(self):
         self.patterns = [(re.compile(pattern, re.MULTILINE), token_type) for pattern, token_type in self.TOKEN_PATTERNS]
         self.errors: list[IllegalFollow] = []
 
     def tokenize(self, source: str) -> List[Token]:
         """Tokenize source code into a list of tokens."""
-        if self.verbose:
-            lexer_log.info(f"Starting tokenization of source code ({len(source)} characters)")
-            lexer_log.debug(f"Source code:\n{source}")
+        lexer_log.info(f"Starting tokenization of source code ({len(source)} characters)")
+        lexer_log.debug(f"Source code:\n{source}")
 
         tokens = []
         lines = source.split('\n')
-
-        if self.verbose:
-            lexer_log.info(f"Processing {len(lines)} lines of code")
+        
+        lexer_log.info(f"Processing {len(lines)} lines of code")
 
         for line_num, line in enumerate(lines, 1):
             self._tokenize_line(line, line_num, tokens)
 
         # Add EOF token
         tokens.append(Token(TokenType.EOF, None, len(lines), 0))
+        token_types = {}
+        for token in tokens:
+            if token.type != TokenType.COMMENT and token.type != TokenType.NEWLINE:
+                token_types[token.type.name] = token_types.get(token.type.name, 0) + 1
 
-        if self.verbose:
-            token_types = {}
-            for token in tokens:
-                if token.type != TokenType.COMMENT and token.type != TokenType.NEWLINE:
-                    token_types[token.type.name] = token_types.get(token.type.name, 0) + 1
+        lexer_log.success(f"Tokenization complete: {len(tokens)} tokens generated")
+        lexer_log.debug(f"Token type distribution: {token_types}")
 
-            lexer_log.success(f"Tokenization complete: {len(tokens)} tokens generated")
-            lexer_log.debug(f"Token type distribution: {token_types}")
-
-            # Print first few tokens for debugging
-            if len(tokens) > 10:
-                lexer_log.debug("First 10 tokens: " + ', '.join(f"{token.type.name}({token.value})" for token in tokens[:10] if token.type != TokenType.COMMENT))
-            else:
-                lexer_log.debug("All tokens: " + ', '.join(f"{token.type.name}({token.value})" for token in tokens if token.type != TokenType.COMMENT))
+        # Print first few tokens for debugging
+        if len(tokens) > 10:
+            lexer_log.debug("First 10 tokens: " + ', '.join(f"{token.type.name}({token.value})" for token in tokens[:10] if token.type != TokenType.COMMENT))
+        else:
+            lexer_log.debug("All tokens: " + ', '.join(f"{token.type.name}({token.value})" for token in tokens if token.type != TokenType.COMMENT))
 
         return tokens
 
@@ -181,14 +176,13 @@ class Lexer:
             if indent:
                 # TODO: Proper indent/dedent handling
                 column = len(indent)
-                if self.verbose and len(indent) > 0:
+                if len(indent) > 0:
                     lexer_log.info(f"Line {line_num}: Found indentation of {len(indent)} spaces")
 
         # Skip empty lines
         if not line.strip():
             tokens.append(Token(TokenType.NEWLINE, '\\\\n', line_num, column))
-            if self.verbose:
-                lexer_log.info(f"Line {line_num}: Empty line, added NEWLINE token")
+            lexer_log.info(f"Line {line_num}: Empty line, added NEWLINE token")
             return
 
         # Tokenize the rest of the line
@@ -216,15 +210,14 @@ class Lexer:
                     # Handle keywords vs identifiers
                     if token_type == TokenType.IDENTIFIER and value in self.KEYWORDS:
                         token_type = self.KEYWORDS[value]
-                        if self.verbose:
-                            lexer_log.info(f"Line {line_num}, Column {pos}: Identified keyword '{value}' as {token_type.name}")
-                    elif self.verbose and token_type != TokenType.COMMENT:
+                        lexer_log.info(f"Line {line_num}, Column {pos}: Identified keyword '{value}' as {token_type.name}")
+                    elif token_type != TokenType.COMMENT:
                         lexer_log.info(f"Line {line_num}, Column {pos}: Matched '{value}' as {token_type.name}")
 
                     # Skip comments
                     if token_type != TokenType.COMMENT:
                         tokens.append(Token(token_type, value, line_num, pos))
-                    elif self.verbose:
+                    else:
                         lexer_log.info(f"Line {line_num}, Column {pos}: Skipping comment")
 
                     # Check for illegal follows
@@ -239,11 +232,10 @@ class Lexer:
 
             if not matched:
                 error_msg = f"Invalid character '{line[pos]}' at line {line_num}, column {pos}"
-                if self.verbose:
-                    lexer_log.error(f"{error_msg}")
+                lexer_log.error(f"{error_msg}")
                 raise SyntaxError(error_msg)
 
         # Add newline token at end of non-empty lines
         tokens.append(Token(TokenType.NEWLINE, '\\\\n', line_num, len(line)))
-        if self.verbose and len(tokens) > 1 and tokens[-2].type != TokenType.NEWLINE:
+        if len(tokens) > 1 and tokens[-2].type != TokenType.NEWLINE:
             lexer_log.info(f"Line {line_num}: Added NEWLINE token at end of line")

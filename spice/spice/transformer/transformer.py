@@ -18,32 +18,27 @@ from spice.printils import transformer_log
 class Transformer:
     """Transform Spice AST to Python code."""
 
-    def __init__(self, verbose: bool = False):
+    def __init__(self):
         self.indent_level = 0
         self.output = []
-        self.in_class = False  # Track if we're inside a class
-        self.verbose = verbose
+        self.in_class = False
 
     def transform(self, ast: Module) -> str:
         """Transform AST to Python code."""
-        if self.verbose:
-            transformer_log.info("Starting transformation of AST to Python code")
+        transformer_log.info("Starting transformation of AST to Python code")
 
         self.output = []
         self.visit_module(ast)
 
         result = ''.join(self.output)
-
-        if self.verbose:
-            lines = result.count('\n') + 1
-            transformer_log.success(f"Transformation complete: Generated {lines} lines of Python code")
+        lines = result.count('\n') + 1
+        transformer_log.success(f"Transformation complete: Generated {lines} lines of Python code")
 
         return result
 
     def visit_module(self, node: Module):
         """Visit module node."""
-        if self.verbose:
-            transformer_log.custom("transform", f"Processing module with {len(node.body)} top-level statements")
+        transformer_log.custom("transform", f"Processing module with {len(node.body)} top-level statements")
 
         # Add imports if needed
         has_interfaces = any(isinstance(stmt, InterfaceDeclaration) for stmt in node.body)
@@ -65,18 +60,15 @@ class Transformer:
                         break
 
         if has_interfaces or has_abstract:
-            if self.verbose:
-                transformer_log.info("Adding import for ABC and abstractmethod")
+            transformer_log.info("Adding import for ABC and abstractmethod")
             self.output.append("from abc import ABC, abstractmethod\n")
 
         if has_interfaces:
-            if self.verbose:
-                transformer_log.info("Adding import for Protocol")
+            transformer_log.info("Adding import for Protocol")
             self.output.append("from typing import Protocol\n")
 
         if has_final:
-            if self.verbose:
-                transformer_log.info("Adding import for final decorator")
+            transformer_log.info("Adding import for final decorator")
             self.output.append("from typing import final\n")
 
         if has_interfaces or has_abstract or has_final:
@@ -84,8 +76,7 @@ class Transformer:
 
         # Visit each statement
         for stmt in node.body:
-            if self.verbose:
-                transformer_log.info(f"Transforming {type(stmt).__name__}")
+            transformer_log.info(f"Transforming {type(stmt).__name__}")
             self.visit(stmt)
             self._new_line() # Add newline after each top-level statement
 
@@ -101,15 +92,13 @@ class Transformer:
 
     def generic_visit(self, node):
         """Default visitor for unknown node types."""
-        if self.verbose:
-            transformer_log.error(f"No visitor found for {type(node).__name__}")
+        transformer_log.error(f"No visitor found for {type(node).__name__}")
         pass
 
     ### All the Visit Methods ###
     def visit_InterfaceDeclaration(self, node: InterfaceDeclaration):
         """Visit interface declaration node."""
-        if self.verbose:
-            transformer_log.custom("transform", f"Transforming interface '{node.name}' with {len(node.methods)} methods")
+        transformer_log.custom("transform", f"Transforming interface '{node.name}' with {len(node.methods)} methods")
 
         extensions = f", {', '.join(node.base_interfaces)}" if node.base_interfaces else ""
 
@@ -127,8 +116,7 @@ class Transformer:
 
             # Transform each method signature
             for i, method in enumerate(node.methods):
-                if self.verbose:
-                    transformer_log.custom("transform", f"Transforming interface method signature: {method.name}")
+                transformer_log.custom("transform", f"Transforming interface method signature: {method.name}")
                 self.visit_MethodSignature(method)
                 if i < len(node.methods) - 1:
                     self._new_line() # Add newlines between methods
@@ -158,12 +146,11 @@ class Transformer:
 
     def visit_ClassDeclaration(self, node: ClassDeclaration):
         """Visit class declaration node."""
-        if self.verbose:
-            transformer_log.custom("transform", f"Transforming class '{node.name}'")
-            if node.is_abstract:
-                transformer_log.info("Class is abstract")
-            if node.is_final:
-                transformer_log.info("Class is final")
+        transformer_log.custom("transform", f"Transforming class '{node.name}'")
+        if node.is_abstract:
+            transformer_log.info("Class is abstract")
+        if node.is_final:
+            transformer_log.info("Class is final")
 
         self.in_class = True
 
@@ -177,15 +164,13 @@ class Transformer:
         # For abstract classes with no explicit bases, add ABC as a base
         if node.is_abstract and not bases:
             bases.append("ABC")
-            if self.verbose:
-                transformer_log.info("Adding ABC as base class for abstract class")
+            transformer_log.info("Adding ABC as base class for abstract class")
 
         base_str = f"({', '.join(bases)})" if bases else ""
 
         # Add final decorator if needed
         if node.is_final:
-            if self.verbose:
-                transformer_log.info("Adding @final decorator")
+            transformer_log.info("Adding @final decorator")
             self.output.append("@final\n")
 
         # Class definition
@@ -201,8 +186,7 @@ class Transformer:
 
             # Transform each class member
             for i, stmt in enumerate(node.body):
-                if self.verbose:
-                    transformer_log.info(f"Transforming class member: {type(stmt).__name__}")
+                transformer_log.info(f"Transforming class member: {type(stmt).__name__}")
                 self.visit(stmt)
                 if i < len(node.body) - 1:
                     self._new_line()
@@ -213,14 +197,13 @@ class Transformer:
 
     def visit_FunctionDeclaration(self, node: FunctionDeclaration):
         """Visit function declaration node."""
-        if self.verbose:
-            transformer_log.custom("transform", f"Transforming {'method' if self.in_class else 'function'} '{node.name}'")
-            if node.is_abstract:
-                transformer_log.info("Method is abstract")
-            if node.is_final:
-                transformer_log.info("Method is final")
-            if node.is_static:
-                transformer_log.info("Method is static")
+        transformer_log.custom("transform", f"Transforming {'method' if self.in_class else 'function'} '{node.name}'")
+        if node.is_abstract:
+            transformer_log.info("Method is abstract")
+        if node.is_final:
+            transformer_log.info("Method is final")
+        if node.is_static:
+            transformer_log.info("Method is static")
 
         params = node.params.copy()
 
@@ -270,8 +253,7 @@ class Transformer:
 
             # Transform function body statements
             for stmt in node.body:
-                if self.verbose:
-                    transformer_log.info(f"Transforming function body statement: {type(stmt).__name__}")
+                transformer_log.info(f"Transforming function body statement: {type(stmt).__name__}")
                 self.visit(stmt)
 
         self.indent_level -= 1
@@ -279,8 +261,7 @@ class Transformer:
 
     def visit_ExpressionStatement(self, node: ExpressionStatement):
         """Visit expression statement node."""
-        if self.verbose:
-            transformer_log.custom("transform", "Transforming expression statement")
+        transformer_log.custom("transform", "Transforming expression statement")
         if node.expression:
             # Capture the expression output
             output_before = len(self.output)
@@ -296,15 +277,13 @@ class Transformer:
 
     def visit_PassStatement(self, node: PassStatement):
         """Visit pass statement node."""
-        if self.verbose:
-            transformer_log.custom("transform", "Transforming pass statement")
+        transformer_log.custom("transform", "Transforming pass statement")
         self.output.append(self._indent("pass\n"))
 
 
     def visit_AssignmentExpression(self, node: AssignmentExpression):
         """Visit assignment expression node."""
-        if self.verbose:
-            transformer_log.custom("transform", "Transforming assignment expression")
+        transformer_log.custom("transform", "Transforming assignment expression")
 
         # Support for +=, -=, *=, /=, etc.
         op = getattr(node, 'operator', '=')  # Default to '=' if not present
@@ -322,15 +301,13 @@ class Transformer:
 
     def visit_IdentifierExpression(self, node: IdentifierExpression):
         """Visit identifier expression node."""
-        if self.verbose:
-            transformer_log.custom("transform", f"Transforming identifier: {node.name}")
+        transformer_log.custom("transform", f"Transforming identifier: {node.name}")
         self.output.append(node.name)
 
 
     def visit_AttributeExpression(self, node: AttributeExpression):
         """Visit attribute expression node."""
-        if self.verbose:
-            transformer_log.custom("transform", f"Transforming attribute access: {node.attribute}")
+        transformer_log.custom("transform", f"Transforming attribute access: {node.attribute}")
 
         # Visit the object
         output_before = len(self.output)
@@ -346,8 +323,7 @@ class Transformer:
 
     def visit_LiteralExpression(self, node: LiteralExpression):
         """Visit literal expression node."""
-        if self.verbose:
-            transformer_log.custom("transform", f"Transforming literal: {node.value}")
+        transformer_log.custom("transform", f"Transforming literal: {node.value}")
 
         if node.value is None:
             self.output.append("None")
@@ -417,8 +393,7 @@ class Transformer:
 
     def visit_CallExpression(self, node: CallExpression):
         """Visit call expression node."""
-        if self.verbose:
-            transformer_log.custom("transform", "Transforming function/method call")
+        transformer_log.custom("transform", "Transforming function/method call")
 
         # Visit the callee
         output_before = len(self.output)
@@ -442,8 +417,7 @@ class Transformer:
 
     def visit_ReturnStatement(self, node: ReturnStatement):
         """Visit return statement node."""
-        if self.verbose:
-            transformer_log.custom("transform", "Transforming return statement")
+        transformer_log.custom("transform", "Transforming return statement")
         if node.value is not None:
             output_before = len(self.output)
             self.visit(node.value)
@@ -457,8 +431,7 @@ class Transformer:
 
     def visit_IfStatement(self, node: IfStatement):
         """Visit if statement node."""
-        if self.verbose:
-            transformer_log.custom("transform", "Transforming if statement")
+        transformer_log.custom("transform", "Transforming if statement")
         self.output.append(self._indent(f"if "))
         output_before = len(self.output)
         self.visit(node.condition)
@@ -480,8 +453,7 @@ class Transformer:
 
     def visit_ForStatement(self, node: ForStatement):
         """Visit for statement node."""
-        if self.verbose:
-            transformer_log.custom("transform", "Transforming for statement")
+        transformer_log.custom("transform", "Transforming for statement")
 
         self.output.append(self._indent("for "))
         # Transform the target expression to string
@@ -495,8 +467,7 @@ class Transformer:
 
     def visit_WhileStatement(self, node: WhileStatement):
         """Visit while statement node."""
-        if self.verbose:
-            transformer_log.custom("transform", "Transforming while statement")
+        transformer_log.custom("transform", "Transforming while statement")
         self.output.append(self._indent("while "))
         output_before = len(self.output)
         self.visit(node.condition)
@@ -512,8 +483,7 @@ class Transformer:
 
     def visit_SwitchStatement(self, node: SwitchStatement):
         """Visit switch statement node."""
-        if self.verbose:
-            transformer_log.custom("transform", "Transforming switch statement (using if-elif-else)")
+        transformer_log.custom("transform", "Transforming switch statement (using if-elif-else)")
         # Python doesn't have switch, so use if-elif-else
         for i, case in enumerate(node.cases):
             if i == 0:
@@ -566,8 +536,7 @@ class Transformer:
 
     def visit_RaiseStatement(self, node: RaiseStatement):
         """Visit raise statement node."""
-        if self.verbose:
-            transformer_log.custom("transform", "Transforming raise statement")
+        transformer_log.custom("transform", "Transforming raise statement")
 
         if node.exception is not None:
             # Get the exception expression as a string
@@ -584,8 +553,7 @@ class Transformer:
 
     def visit_ImportStatement(self, node: ImportStatement):
         """Visit import statement node."""
-        if self.verbose:
-            transformer_log.custom("transform", "Transforming import statement")
+        transformer_log.custom("transform", "Transforming import statement")
 
         if node.is_from_import:
             # from module import name1, name2, ...
@@ -608,8 +576,7 @@ class Transformer:
 
     def visit_DictEntry(self, node: DictEntry):
         """Visit dictionary entry node."""
-        if self.verbose:
-            transformer_log.custom("transform", "Transforming dictionary entry")
+        transformer_log.custom("transform", "Transforming dictionary entry")
 
         # Get key as string
         key_output_before = len(self.output)
@@ -630,8 +597,7 @@ class Transformer:
 
     def visit_SubscriptExpression(self, node: SubscriptExpression):
         """Visit subscript expression node."""
-        if self.verbose:
-            transformer_log.custom("transform", "Transforming subscript expression")
+        transformer_log.custom("transform", "Transforming subscript expression")
 
         # Visit the object being subscripted
         output_before = len(self.output)
@@ -652,8 +618,7 @@ class Transformer:
 
     def visit_ComprehensionExpression(self, node: ComprehensionExpression):
         """Visit comprehension expression node."""
-        if self.verbose:
-            transformer_log.custom("transform", f"Transforming {node.comp_type} comprehension")
+        transformer_log.custom("transform", f"Transforming {node.comp_type} comprehension")
 
         # Get element expression as string
         element_str = self.expr_to_str(node.element)
@@ -689,8 +654,7 @@ class Transformer:
 
     def visit_FinalDeclaration(self, node: FinalDeclaration):
         """Transform final variable declaration to Python with runtime checks."""
-        if self.verbose:
-            transformer_log.custom("transform", "Transforming final declaration")
+        transformer_log.custom("transform", "Transforming final declaration")
         
         # Generate the variable assignment
         target_str = self.expr_to_str(node.target)
