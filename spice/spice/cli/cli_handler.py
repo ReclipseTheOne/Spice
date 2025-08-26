@@ -33,5 +33,8 @@ def from_cli(source: str, output: Optional[str], check: bool, watch: bool, verbo
     spam_console(flags.verbose)
 
     spice_compiler_log.custom("spice", f"Compiling from entry point: {flags.source.resolve().as_posix()}")
-    SpicePipeline.walk(flags.source, flags)
 
+    spice_tree: SpiceFile = SpicePipeline.walk(flags.source, flags)
+    SpicePipeline.verify_and_write(spice_tree, flags)
+
+    spice_compiler_log.custom("spice", "Compilation finished successfully.")

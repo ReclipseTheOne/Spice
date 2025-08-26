@@ -27,6 +27,8 @@ def add_and_check_import_path(path: Path):
 class SpicePipeline:
     @staticmethod
     def tokenize(file: SpiceFile, flags: CLI_FLAGS):
+        """Tokenize and verify lexically the current Spice File"""
+
         pipeline_log.custom("pipeline", f"Tokenizing file: {file.path.resolve().as_posix()}")
 
         lexer: Lexer = Lexer()
@@ -34,6 +36,8 @@ class SpicePipeline:
 
     @staticmethod
     def parse(file: SpiceFile, flags: CLI_FLAGS):
+        """Parse and verify syntactically the current Spice File, generating the file's AST"""
+
         pipeline_log.custom("pipeline", f"Parsing file: {file.path.resolve().as_posix()}")
         
         parser: Parser = Parser()
@@ -41,6 +45,8 @@ class SpicePipeline:
 
     @staticmethod
     def resolve_imports(file: SpiceFile, lookup: list[Path], flags: CLI_FLAGS):
+        """Resolve the imports for the current Spice File"""
+
         pipeline_log.custom("pipeline", f"Resolving imports for file: {file.path.resolve().as_posix()}")
 
         left_to_resolve: list[ImportStatement] = []
@@ -92,7 +98,9 @@ class SpicePipeline:
 
     @staticmethod
     def transform_and_write(file: SpiceFile, flags: CLI_FLAGS):
-        pipeline_log.custom("pipeline", f"Writing python for file: {file.path.resolve().as_posix()}")
+        """Transform the AST of the current Spice File into Python code and write it to disk"""
+
+        pipeline_log.custom("pipeline", f"Transforming file: {file.path.resolve().as_posix()}")
 
         transformer: Transformer = Transformer()
         file.py_code = transformer.transform(file.ast)
@@ -101,10 +109,13 @@ class SpicePipeline:
             file.py_path = flags.output.resolve() / file.py_path
 
         with open(file.py_path, 'w', encoding='utf-8') as f:
+            pipeline_log.custom("pipeline", f"Writing...")
             f.write(file.py_code)
 
     @staticmethod
-    def walk(path: Path, flags: CLI_FLAGS):
+    def walk(path: Path, flags: CLI_FLAGS) -> SpiceFile:
+        """Recursively populate and transform the import tree for the current Spice File"""
+
         spc_file = SpiceFile(path)
         SpicePipeline.tokenize(spc_file, flags)
         SpicePipeline.parse(spc_file, flags)
@@ -113,5 +124,16 @@ class SpicePipeline:
         for imported in spc_file.spc_imports:
             pipeline_log.custom("pipeline", f"Walking imported file: {imported.path.resolve().as_posix()}")
             SpicePipeline.walk(imported.path, flags)
+
+        return spc_file
+
+    @staticmethod
+    def verify_and_write(file: SpiceFile, flags: CLI_FLAGS):
+        """Run compile time checks on all the Spice File Tree and write the tree to disk"""
+
+        pipeline_log.custom("pipeline", f"Verifying file: {file.path.resolve().as_posix()}")
         
-        SpicePipeline.transform_and_write(spc_file, flags)
+        SpicePipeline.transform_and_write(file, flags)
+
+        for imported in file.spc_imports:
+            SpicePipeline.verify_and_write(imported, flags)
