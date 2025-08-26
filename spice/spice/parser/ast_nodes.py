@@ -13,6 +13,10 @@ class ASTNode(ABC):
         """Accept a visitor for traversal."""
         pass
 
+    @abstractmethod
+    def __str__(self) -> str:
+        pass
+
 
 @dataclass
 class Module(ASTNode):
@@ -21,6 +25,12 @@ class Module(ASTNode):
 
     def accept(self, visitor):
         return visitor.visit_Module(self)
+
+    def __str__(self) -> str:
+        ret = "Module: "
+        for stmt in self.body:
+            ret += f"\n  {stmt}"
+        return ret
 
 
 @dataclass
@@ -33,6 +43,11 @@ class InterfaceDeclaration(ASTNode):
     def accept(self, visitor):
         return visitor.visit_InterfaceDeclaration(self)
 
+    def __str__(self) -> str:
+        ret = f"InterfaceDeclaration(name={self.name}, methods=["
+        ret += ", ".join(f"{method}" for method in self.methods)
+        ret += f"], base_interfaces={self.base_interfaces})"
+        return ret
 
 @dataclass
 class MethodSignature(ASTNode):
@@ -44,6 +59,12 @@ class MethodSignature(ASTNode):
     def accept(self, visitor):
         return visitor.visit_MethodSignature(self)
 
+    def __str__(self) -> str:
+        ret = f"MethodSignature(name={self.name}, params=["
+        ret += ", ".join(f"{param}" for param in self.params)
+        ret += f"], return_type={self.return_type})"
+        return ret
+
 
 @dataclass
 class Parameter(ASTNode):
@@ -54,6 +75,9 @@ class Parameter(ASTNode):
 
     def accept(self, visitor):
         return visitor.visit_Parameter(self)
+
+    def __str__(self) -> str:
+        return f"Parameter(name={self.name}, type_annotation={self.type_annotation}, default={self.default})"
 
 
 @dataclass
@@ -68,6 +92,11 @@ class ClassDeclaration(ASTNode):
 
     def accept(self, visitor):
         return visitor.visit_ClassDeclaration(self)
+
+    def __str__(self) -> str:
+        ret = f"ClassDeclaration(name={self.name}, bases={self.bases}, interfaces={self.interfaces}, "
+        ret += f"is_abstract={self.is_abstract}, is_final={self.is_final})"
+        return ret
 
 
 @dataclass
@@ -85,6 +114,14 @@ class FunctionDeclaration(ASTNode):
     def accept(self, visitor):
         return visitor.visit_FunctionDeclaration(self)
 
+    def __str__(self) -> str:
+        ret = f"FunctionDeclaration(name={self.name}, params=["
+        ret += ", ".join(f"{param}" for param in self.params)
+        ret += f"], body={self.body}, return_type={self.return_type}, "
+        ret += f"is_static={self.is_static}, is_abstract={self.is_abstract}, is_final={self.is_final}, "
+        ret += f"decorators={self.decorators})"
+        return ret
+
 
 @dataclass
 class BlockStatement(ASTNode):
@@ -93,6 +130,12 @@ class BlockStatement(ASTNode):
 
     def accept(self, visitor):
         return visitor.visit_BlockStatement(self)
+
+    def __str__(self) -> str:
+        ret = "BlockStatement: "
+        for stmt in self.statements:
+            ret += f"\n  {stmt}"
+        return ret
 
 
 @dataclass
@@ -104,6 +147,9 @@ class ExpressionStatement(ASTNode):
     def accept(self, visitor):
         return visitor.visit_ExpressionStatement(self)
 
+    def __str__(self) -> str:
+        return f"ExpressionStatement(expression={self.expression}, has_semicolon={self.has_semicolon})"
+
 
 @dataclass
 class PassStatement(ASTNode):
@@ -113,6 +159,8 @@ class PassStatement(ASTNode):
     def accept(self, visitor):
         return visitor.visit_PassStatement(self)
 
+    def __str__(self) -> str:
+        return f"PassStatement(has_semicolon={self.has_semicolon})"
 
 @dataclass
 class ReturnStatement(ASTNode):
@@ -122,6 +170,9 @@ class ReturnStatement(ASTNode):
 
     def accept(self, visitor):
         return visitor.visit_ReturnStatement(self)
+
+    def __str__(self) -> str:
+        return f"ReturnStatement(value={self.value}, has_semicolon={self.has_semicolon})"
 
 
 @dataclass
@@ -134,6 +185,8 @@ class IfStatement(ASTNode):
     def accept(self, visitor):
         return visitor.visit_IfStatement(self)
 
+    def __str__(self) -> str:
+        return f"IfStatement(condition={self.condition}, then_body={self.then_body}, else_body={self.else_body})"
 
 @dataclass
 class ForStatement(ASTNode):
@@ -144,6 +197,9 @@ class ForStatement(ASTNode):
     def accept(self, visitor):
         return visitor.visit_ForStatement(self)
 
+    def __str__(self) -> str:
+        return f"ForStatement(target={self.target}, body={self.body})"
+
 
 @dataclass
 class WhileStatement(ASTNode):
@@ -153,6 +209,9 @@ class WhileStatement(ASTNode):
 
     def accept(self, visitor):
         return visitor.visit_WhileStatement(self)
+
+    def __str__(self) -> str:
+        return f"WhileStatement(condition={self.condition}, body={self.body})"
 
 
 @dataclass
@@ -165,6 +224,9 @@ class SwitchStatement(ASTNode):
     def accept(self, visitor):
         return visitor.visit_SwitchStatement(self)
 
+    def __str__(self) -> str:
+        return f"SwitchStatement(expression={self.expression}, cases={self.cases}, default={self.default})"
+
 
 @dataclass
 class CaseClause(ASTNode):
@@ -174,6 +236,9 @@ class CaseClause(ASTNode):
 
     def accept(self, visitor):
         return visitor.visit_CaseClause(self)
+
+    def __str__(self) -> str:
+        return f"CaseClause(value={self.value}, body={self.body})"
 
 
 # Expression nodes
@@ -193,6 +258,9 @@ class AssignmentExpression(Expression):
     def accept(self, visitor):
         return visitor.visit_AssignmentExpression(self)
 
+    def __str__(self) -> str:
+        return f"AssignmentExpression(target={self.target}, value={self.value}, operator={self.operator})"
+
 
 @dataclass
 class IdentifierExpression(Expression):
@@ -201,6 +269,9 @@ class IdentifierExpression(Expression):
 
     def accept(self, visitor):
         return visitor.visit_IdentifierExpression(self)
+
+    def __str__(self) -> str:
+        return f"IdentifierExpression(name={self.name})"
 
 
 @dataclass
@@ -212,6 +283,9 @@ class AttributeExpression(Expression):
     def accept(self, visitor):
         return visitor.visit_AttributeExpression(self)
 
+    def __str__(self) -> str:
+        return f"AttributeExpression(object={self.object}, attribute={self.attribute})"
+
 
 @dataclass
 class LiteralExpression(Expression):
@@ -222,6 +296,8 @@ class LiteralExpression(Expression):
     def accept(self, visitor):
         return visitor.visit_LiteralExpression(self)
 
+    def __str__(self) -> str:
+        return f"LiteralExpression(value={self.value}, literal_type={self.literal_type})"
 
 @dataclass
 class CallExpression(Expression):
@@ -232,6 +308,9 @@ class CallExpression(Expression):
     def accept(self, visitor):
         return visitor.visit_CallExpression(self)
 
+    def __str__(self) -> str:
+        return f"CallExpression(callee={self.callee}, arguments={self.arguments})"
+
 
 @dataclass
 class ArgumentExpression(Expression):
@@ -241,6 +320,9 @@ class ArgumentExpression(Expression):
 
     def accept(self, visitor):
         return visitor.visit_ArgumentExpression(self)
+
+    def __str__(self) -> str:
+        return f"ArgumentExpression(name={self.name}, value={self.value})"
 
 
 @dataclass
@@ -253,6 +335,9 @@ class LogicalExpression(Expression):
     def accept(self, visitor):
         return visitor.visit_LogicalExpression(self)
 
+    def __str__(self) -> str:
+        return f"LogicalExpression(operator={self.operator}, left={self.left}, right={self.right})"
+
 
 @dataclass
 class UnaryExpression(Expression):
@@ -262,6 +347,9 @@ class UnaryExpression(Expression):
 
     def accept(self, visitor):
         return visitor.visit_UnaryExpression(self)
+
+    def __str__(self) -> str:
+        return f"UnaryExpression(operator={self.operator}, operand={self.operand})"
 
 
 @dataclass
@@ -274,6 +362,9 @@ class BinaryExpression(Expression):
     def accept(self, visitor):
         return visitor.visit_BinaryExpression(self)
 
+    def __str__(self) -> str:
+        return f"BinaryExpression(operator={self.operator}, left={self.left}, right={self.right})"
+
 
 @dataclass
 class LambdaExpression(Expression):
@@ -285,6 +376,9 @@ class LambdaExpression(Expression):
     def accept(self, visitor):
         return visitor.visit_LambdaExpression(self)
 
+    def __str__(self) -> str:
+        return f"LambdaExpression(params={self.params}, body={self.body}, return_type={self.return_type})"
+
 
 @dataclass
 class RaiseStatement(ASTNode):
@@ -295,6 +389,8 @@ class RaiseStatement(ASTNode):
     def accept(self, visitor):
         return visitor.visit_RaiseStatement(self)
 
+    def __str__(self) -> str:
+        return f"RaiseStatement(exception={self.exception}, has_semicolon={self.has_semicolon})"
 
 @dataclass
 class ImportStatement(ASTNode):
@@ -307,7 +403,16 @@ class ImportStatement(ASTNode):
 
     def accept(self, visitor):
         return visitor.visit_ImportStatement(self)
-
+    
+    def __str__(self) -> str:
+        ret = (
+            "ImportStatement: \n"
+            f"    module: {self.module},\n"
+            f"    names: {self.names},\n"
+            f"    aliases: {self.aliases},\n"
+            f"    is_from_import: {self.is_from_import}"
+        )
+        return ret
 
 @dataclass
 class DictEntry(Expression):
@@ -317,6 +422,9 @@ class DictEntry(Expression):
 
     def accept(self, visitor):
         return visitor.visit_DictEntry(self)
+    
+    def __str__(self) -> str:
+        return f"DictEntry(key={self.key}, value={self.value})"
 
 
 @dataclass
@@ -327,6 +435,9 @@ class SubscriptExpression(Expression):
 
     def accept(self, visitor):
         return visitor.visit_SubscriptExpression(self)
+
+    def __str__(self) -> str:
+        return f"SubscriptExpression(object={self.object}, index={self.index})"
 
 
 @dataclass
@@ -339,18 +450,26 @@ class SliceExpression(Expression):
     def accept(self, visitor):
         return visitor.visit_SliceExpression(self)
 
+    def __str__(self) -> str:
+        return f"SliceExpression(start={self.start}, stop={self.stop}, step={self.step})"
+
 @dataclass
 class ComprehensionExpression(Expression):
     """Comprehension expression: [expr for target in iter if condition]"""
-    element: Expression  # The expression to evaluate for each item
-    target: Expression   # The loop variable(s)
-    iter: Expression     # The iterable to loop over
-    condition: Optional[Expression] = None  # Optional filter condition
-    comp_type: str = 'generator'  # 'generator', 'list', 'dict', 'set'
-    key: Optional[Expression] = None  # For dict comprehensions: key expression
+    element: Expression
+    target: Expression
+    iter: Expression
+    condition: Optional[Expression] = None
+    comp_type: str = 'generator'
+    key: Optional[Expression] = None
 
     def accept(self, visitor):
         return visitor.visit_ComprehensionExpression(self)
+
+    def __str__(self) -> str:
+        return (f"ComprehensionExpression(element={self.element}, target={self.target}, "
+                f"iter={self.iter}, condition={self.condition}, comp_type={self.comp_type}, "
+                f"key={self.key})")
 
 @dataclass
 class FinalDeclaration(ASTNode):
@@ -361,3 +480,7 @@ class FinalDeclaration(ASTNode):
     
     def accept(self, visitor):
         return visitor.visit_FinalDeclaration(self)
+
+    def __str__(self) -> str:
+        return (f"FinalDeclaration(target={self.target}, value={self.value}, "
+                f"type_annotation={self.type_annotation})")

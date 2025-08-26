@@ -59,7 +59,7 @@ FOLLOW_SET = {
         TokenType.AND, TokenType.OR, TokenType.IN, TokenType.RPAREN, TokenType.LPAREN,
         TokenType.COLON, TokenType.DOT, TokenType.COMMA, TokenType.LBRACE, TokenType.RBRACKET,
         TokenType.EXTENDS, TokenType.IMPLEMENTS, TokenType.LBRACKET,
-        TokenType.IS, TokenType.NOT, TokenType.IF, TokenType.FOR
+        TokenType.IS, TokenType.NOT, TokenType.IF, TokenType.FOR, TokenType.IMPORT
     },
 
     # alpha = "alpha";
@@ -130,7 +130,7 @@ FOLLOW_SET = {
         TokenType.ABSTRACT, TokenType.CLASS, TokenType.DEF, TokenType.FINAL, TokenType.INTERFACE,
         TokenType.IDENTIFIER, TokenType.PASS, TokenType.RETURN, TokenType.IF, TokenType.FOR, TokenType.WHILE,
         TokenType.SWITCH, TokenType.RBRACE, TokenType.COMMENT, TokenType.EOF, TokenType.NEWLINE, TokenType.STATIC,
-        TokenType.RAISE, TokenType.IMPORT, TokenType.STRING, TokenType.RPAREN
+        TokenType.RAISE, TokenType.IMPORT, TokenType.STRING, TokenType.RPAREN, TokenType.FROM
     },
 
     # -> None:
@@ -526,6 +526,10 @@ FOLLOW_SET = {
         TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.FSTRING,
         TokenType.RSTRING, TokenType.FRSTRING, TokenType.LPAREN, TokenType.LBRACKET,
         TokenType.LBRACE, TokenType.TRUE, TokenType.FALSE, TokenType.NONE, TokenType.MINUS
+    },
+
+    TokenType.FROM: {
+        TokenType.IDENTIFIER
     }
 }
 

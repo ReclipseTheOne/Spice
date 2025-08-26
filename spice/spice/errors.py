@@ -24,3 +24,7 @@ class SemanticError(SpiceError):
 class TransformError(SpiceError):
     """Transformation error."""
     pass
+
+class ImportError(SpiceError):
+    """Import resolution error."""
+    pass

@@ -554,6 +554,7 @@ class Transformer:
     def visit_ImportStatement(self, node: ImportStatement):
         """Visit import statement node."""
         transformer_log.custom("transform", "Transforming import statement")
+        transformer_log.debug(str(node))
 
         if node.is_from_import:
             # from module import name1, name2, ...

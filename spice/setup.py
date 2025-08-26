@@ -9,8 +9,7 @@ setup(
     package_dir={"": "spice"},
     entry_points={
         "console_scripts": [
-            "spicy=spice.cli.compiler:run",
-            "spice=spice.cli.runner:run"
+            "spicy=spice.cli.cli_handler:from_cli"
         ]
     },
     python_requires=">=3.8",
