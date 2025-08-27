@@ -28,3 +28,7 @@ class TransformError(SpiceError):
 class ImportError(SpiceError):
     """Import resolution error."""
     pass
+
+class SpiceCompileTimeError(SpiceError):
+    """Compile time error."""
+    pass

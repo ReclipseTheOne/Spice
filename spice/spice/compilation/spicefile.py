@@ -11,11 +11,13 @@ class SpiceFile:
 
         if NOT_SPC_FILE and NO_MAIN_SPC:
             raise FileNotFoundError(f"Expected a .spc file or a directory containing '__main__.spc', got: {path}")
+        else:
+            path = path / '__main__.spc'
 
         self.path: Path = path
-        self.py_path: Path = self.path.with_suffix('.spc.py') # file.spc.py
+        self.py_path: Path = self.path.with_suffix('.py')
         self.temp_path: Path = Path.home().joinpath('.spice', 'cache', generate_spc_stub(self.path))
-        self.source: str = Path(self.py_path).read_text(encoding='utf-8')
+        self.source: str = Path(self.path).read_text(encoding='utf-8')
 
         self.tokens: list[Token] = []
         self.ast: Module = Module(body=[])

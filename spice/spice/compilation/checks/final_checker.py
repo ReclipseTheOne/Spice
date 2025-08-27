@@ -1,6 +1,8 @@
 from spice.parser.ast_nodes import FinalDeclaration, AssignmentExpression, IdentifierExpression, FunctionDeclaration, ClassDeclaration
+from spice.compilation.checks.compile_time_check import CompileTimeCheck
+from spice.compilation.spicefile import SpiceFile
 
-class FinalChecker:
+class FinalChecker(CompileTimeCheck):
     """Compile-time checker for final variable reassignments."""
     
     def __init__(self):
@@ -8,6 +10,12 @@ class FinalChecker:
         self.current_scope = 'global'
         self.errors = []
     
+    def check(self, file: SpiceFile) -> bool:
+        for node in file.ast.body:
+            self._visit_node(node)
+        return not self.errors
+
+
     def enter_scope(self, scope_name: str):
         """Enter a new scope (function/class)."""
         self.current_scope = scope_name
@@ -36,11 +44,6 @@ class FinalChecker:
             return False
         return True
     
-    def walk_ast(self, ast):
-        """Walk the AST and check for final violations."""
-        for node in ast.body:
-            self._visit_node(node)
-    
     def _visit_node(self, node):
         """Visit a node and check for violations."""
         if isinstance(node, FinalDeclaration):
@@ -48,12 +51,10 @@ class FinalChecker:
                 self.register_final(node.target.name)
         
         elif isinstance(node, AssignmentExpression):
-            # Check if this is a reassignment to a final variable
             if isinstance(node.target, IdentifierExpression):
                 self.check_assignment(node.target.name, node.line_number)
         
         elif isinstance(node, FunctionDeclaration):
-            # Enter function scope
             old_scope = self.current_scope
             self.enter_scope(node.name)
             for stmt in node.body:
@@ -61,14 +62,12 @@ class FinalChecker:
             self.current_scope = old_scope
         
         elif isinstance(node, ClassDeclaration):
-            # Enter class scope
             old_scope = self.current_scope
             self.enter_scope(node.name)
             for method in node.methods:
                 self._visit_node(method)
             self.current_scope = old_scope
-        
-        # Recursively visit child nodes
+
         if hasattr(node, 'body') and isinstance(node.body, list):
             for child in node.body:
                 self._visit_node(child)
