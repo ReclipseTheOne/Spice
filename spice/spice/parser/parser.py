@@ -6,9 +6,9 @@ from spice.parser.ast_nodes import (
     Module, InterfaceDeclaration, MethodSignature, Parameter,
     ExpressionStatement, PassStatement, Expression, ReturnStatement,
     IfStatement, ForStatement, WhileStatement, SwitchStatement, CaseClause,
-    RaiseStatement, ImportStatement, FinalDeclaration
+    RaiseStatement, ImportStatement, FinalDeclaration, FunctionDeclaration
 )
-from spice.errors import SpiceError
+from spice.errors import SpiceError, ParserError
 
 from spice.printils import parser_log
 
@@ -59,7 +59,7 @@ class Parser:
             self.current -= 1
             return self.peek(1)
         else:
-            raise ParseError("Cannot backtrack beyond start of tokens")
+            self.raise_parser_error("Cannot backtrack beyond start of tokens")
 
     def is_at_end(self) -> bool:
         """Check if we're at end of tokens."""
@@ -80,7 +80,7 @@ class Parser:
             parser_log.info(f"Consumed token: {token.type.name}" + (f" '{token.value}'" if token.value is not None else ""))
             return token
 
-        raise ParseError(f"{message} at line {self.peek().line} - found {self.peek().type.name} instead")
+        self.raise_parser_error(f"{message} at line {self.peek().line} - found {self.peek().type.name} instead")
 
     def get_tokens(self, start: int = -1, size: Optional[int] = None) -> List[Token]:
         """Get a slice of tokens from start to end."""
@@ -89,6 +89,54 @@ class Parser:
         if size is None:
             size = len(self.tokens) - self.current
         return self.tokens[start:(start + size)]
+
+    def raise_parser_error(self, message: str, context_radius: int = 5) -> None:
+        """Raise ParserError with contextual token information."""
+        token_count = len(self.tokens)
+        context_radius = max(context_radius, 0)
+        current_index: Optional[int] = None
+        current_token: Optional[Token] = None
+
+        if token_count:
+            current_index = min(max(self.current, 0), token_count - 1)
+            current_token = self.tokens[current_index]
+
+        location = ""
+        if current_token is not None:
+            filename = current_token.filename or "<unknown>"
+            location = (f" (token {current_index} @ {filename}:"
+                        f"{current_token.line}:{current_token.column} "
+                        f"{current_token.type.name})")
+
+        token_context = self._format_token_context(current_index, context_radius)
+        full_message = message + location
+        if token_context:
+            full_message += f"\n\nToken context:\n{token_context}"
+
+        raise ParserError(full_message)
+
+    def _format_token_context(self, current_index: Optional[int], radius: int) -> str:
+        """Return a formatted string showing tokens around the current index."""
+        if not self.tokens:
+            return "No tokens available."
+
+        if current_index is None:
+            current_index = min(max(self.current, 0), len(self.tokens) - 1)
+
+        start = max(current_index - radius, 0)
+        end = min(current_index + radius + 1, len(self.tokens))
+        lines: List[str] = []
+
+        for idx in range(start, end):
+            token = self.tokens[idx]
+            pointer = "->" if idx == current_index else "  "
+            value_repr = "" if token.value is None else repr(token.value)
+            filename = token.filename or "<unknown>"
+            lines.append(
+                f"{pointer} [{idx}] {token.type.name} {value_repr} @ {filename}:{token.line}:{token.column}"
+            )
+
+        return "\n".join(lines)
 
 
     def parse(self, tokens: List[Token]) -> Module:
@@ -117,6 +165,66 @@ class Parser:
     ##########################################
 
     # Pretty empty atm :p
+    def _consume_compiler_flags(self, allowed_next: Optional[List[TokenType]] = None) -> List[str]:
+        """Consume zero or more compiler flag blocks like [flag1, flag2]."""
+        flags: List[str] = []
+        start_index = self.current
+
+        while self.check(TokenType.LBRACKET):
+            self.advance()  # consume '['
+            flags.extend(self._parse_compiler_flag_values())
+            self.consume(TokenType.RBRACKET, "Expected ']' after compiler flags")
+
+            # Allow trailing commas/newlines by skipping newlines
+            while self.match(TokenType.NEWLINE):
+                continue
+            # Skip inline comments between flag blocks and declarations
+            while self.check(TokenType.COMMENT):
+                self.advance()
+                while self.match(TokenType.NEWLINE):
+                    continue
+
+        if not flags:
+            return flags
+
+        if allowed_next is not None:
+            next_type = self._peek_next_non_newline_type()
+            if next_type not in allowed_next:
+                # Roll back and treat the '[' as normal token (likely a list literal)
+                self.current = start_index
+                return []
+
+        return flags
+
+    def _parse_compiler_flag_values(self) -> List[str]:
+        """Parse the values inside a compiler flag block."""
+        values: List[str] = []
+
+        # Empty block
+        if self.check(TokenType.RBRACKET):
+            return values
+
+        while True:
+            if self.check(TokenType.IDENTIFIER, TokenType.STRING):
+                token = self.advance()
+                values.append(str(token.value))
+            else:
+                self.raise_parser_error("Expected compiler flag identifier or string")
+
+            if not self.match(TokenType.COMMA):
+                break
+
+        return values
+
+    def _peek_next_non_newline_type(self, start_index: Optional[int] = None) -> TokenType:
+        """Peek ahead to find the next non-newline/comment token type."""
+        lookahead = self.current if start_index is None else start_index
+        while lookahead < len(self.tokens):
+            token_type = self.tokens[lookahead].type
+            if token_type not in (TokenType.NEWLINE, TokenType.COMMENT):
+                return token_type
+            lookahead += 1
+        return TokenType.EOF
 
     ##########################################
     ################ CLASSES #################
@@ -165,13 +273,13 @@ class Parser:
                 methods.append(method)
                 parser_log.info(f"Added method signature: {method.name}")
             else:
-                raise ParseError(f"Expected method signature, got {self.peek()}")
+                self.raise_parser_error(f"Expected method signature, got {self.peek()}")
 
         self.consume(TokenType.RBRACE, "Expected '}' after interface body")
         return methods
 
 
-    def parse_class(self):
+    def parse_class(self, compiler_flags: Optional[List[str]] = None):
         """Parse class declaration."""
         from spice.parser.ast_nodes import ClassDeclaration
 
@@ -238,7 +346,7 @@ class Parser:
         self.consume(TokenType.RBRACE, "Expected '}' after class body")
         parser_log.info(f"Completed class '{name}' with {len(body)} members")
 
-        return ClassDeclaration(
+        declaration = ClassDeclaration(
             name=name,
             body=body,
             bases=bases,
@@ -247,6 +355,8 @@ class Parser:
             is_final=is_final
         )
 
+        declaration.compiler_flags = list(compiler_flags or [])
+        return declaration
 
     def parse_class_body(self):
         """Parse class body statements."""
@@ -265,18 +375,23 @@ class Parser:
 
             # Parse class member
             parser_log.info("Parsing class member")
-            stmt = self.parse_class_member()
+            member_flags = self._consume_compiler_flags(
+                [TokenType.STATIC, TokenType.ABSTRACT, TokenType.FINAL, TokenType.DEF]
+            )
+            stmt = self.parse_class_member(compiler_flags=member_flags)
             if stmt:
+                if member_flags and not isinstance(stmt, FunctionDeclaration):
+                    self.raise_parser_error("Compiler flags can only be applied to methods inside classes")
                 parser_log.info(f"Added class member: {type(stmt).__name__}")
                 body.append(stmt)
+            elif member_flags:
+                self.raise_parser_error("Compiler flags must be followed by a method declaration inside classes")
 
         return body
 
 
-    def parse_class_member(self, is_interface: bool = False):
+    def parse_class_member(self, is_interface: bool = False, compiler_flags: Optional[List[str]] = None):
         """Parse a class member (method or field)."""
-        from spice.parser.ast_nodes import FunctionDeclaration
-
         # Check for static modifier
         is_static = False
         is_abstract = False
@@ -313,7 +428,7 @@ class Parser:
                 elif self.check(TokenType.STRING):
                     return_type = self.advance().value
                 else:
-                    raise ParseError(f"Expected return type after '->' at line {self.peek().line}")
+                    self.raise_parser_error(f"Expected return type after '->' at line {self.peek().line}")
                 parser_log.info(f"Method '{name}' has return type: {return_type}")
 
             # Method body - abstract methods don't have bodies
@@ -331,7 +446,7 @@ class Parser:
                 self.consume(TokenType.RBRACE, "Expected '}' after method body")
                 parser_log.info(f"Completed body of method '{name}'")
 
-            return FunctionDeclaration(
+            func_decl = FunctionDeclaration(
                 name=name,
                 params=params,
                 body=body,
@@ -340,6 +455,8 @@ class Parser:
                 is_abstract=is_abstract,
                 is_final=is_final
             )
+            func_decl.compiler_flags = list(compiler_flags or [])
+            return func_decl
 
         # Field declaration or other statements
         else:
@@ -375,7 +492,7 @@ class Parser:
             elif self.check(TokenType.NONE):
                 return_type = self.advance().value
             else:
-                raise ParseError(f"Expected return type at line {self.peek().line}")
+                self.raise_parser_error(f"Expected return type at line {self.peek().line}")
 
             parser_log.info(f"Method '{name}' has return type: {return_type}")
 
@@ -416,7 +533,7 @@ class Parser:
             elif self.check(TokenType.NONE):
                 type_annotation = self.advance().value
             else:
-                raise ParseError(f"Expected type annotation at line {self.peek().line}")
+                self.raise_parser_error(f"Expected type annotation at line {self.peek().line}")
 
         # Default value
         default = None
@@ -454,7 +571,7 @@ class Parser:
         return body
 
 
-    def parse_function(self):
+    def parse_function(self, compiler_flags: Optional[List[str]] = None):
         """Parse function declaration."""
         from spice.parser.ast_nodes import FunctionDeclaration
 
@@ -475,7 +592,7 @@ class Parser:
             elif self.check(TokenType.NONE):
                 return_type = self.advance().value
             else:
-                raise ParseError(f"Expected return type after ':' at line {self.peek().line}")
+                self.raise_parser_error(f"Expected return type after ':' at line {self.peek().line}")
             parser_log.info(f"Function '{name}' has return type: {return_type}")
         elif self.match(TokenType.ARROW):
             # Handle `-> return_type` syntax
@@ -484,7 +601,7 @@ class Parser:
             elif self.check(TokenType.NONE):
                 return_type = self.advance().value
             else:
-                raise ParseError(f"Expected return type after '->' at line {self.peek().line}")
+                self.raise_parser_error(f"Expected return type after '->' at line {self.peek().line}")
             parser_log.info(f"Function '{name}' has return type: {return_type}")
 
         # Function body
@@ -494,7 +611,7 @@ class Parser:
         self.consume(TokenType.RBRACE, "Expected '}' after function body")
         parser_log.info(f"Completed body of function '{name}'")
 
-        return FunctionDeclaration(
+        func_decl = FunctionDeclaration(
             name=name,
             params=params,
             body=body,
@@ -503,6 +620,8 @@ class Parser:
             is_abstract=False,
             is_final=False
         )
+        func_decl.compiler_flags = list(compiler_flags or [])
+        return func_decl
 
 
     ##########################################
@@ -518,20 +637,39 @@ class Parser:
             self.advance()
             return None
 
+        compiler_flags = self._consume_compiler_flags(
+            [TokenType.ABSTRACT, TokenType.FINAL, TokenType.CLASS, TokenType.DEF]
+        )
+
         # Interface declaration
         if self.match(TokenType.INTERFACE):
+            if compiler_flags:
+                self.raise_parser_error("Compiler flags are only supported for classes and functions")
             parser_log.info("Parsing interface declaration")
             return self.parse_interface()
 
-        # Class declaration with modifiers
-        if self.check(TokenType.ABSTRACT, TokenType.FINAL, TokenType.CLASS):
+        # Class declaration with modifiers (final can also start a variable declaration)
+        is_final_class = False
+        if self.check(TokenType.FINAL):
+            next_type = self._peek_next_non_newline_type(self.current + 1)
+            is_final_class = next_type == TokenType.CLASS
+
+        if self.check(TokenType.ABSTRACT, TokenType.CLASS) or is_final_class:
             parser_log.info("Parsing class declaration")
-            return self.parse_class()
+            return self.parse_class(compiler_flags=compiler_flags)
 
         # Function declaration
         if self.match(TokenType.DEF):
             parser_log.info("Parsing function declaration")
-            return self.parse_function()
+            return self.parse_function(compiler_flags=compiler_flags)
+
+        if compiler_flags:
+            self.raise_parser_error("Compiler flags must precede a class or function declaration")
+
+        # Final declaration (top-level)
+        if self.match(TokenType.FINAL):
+            parser_log.info("Parsing top-level final declaration")
+            return self.parse_final_declaration()
 
         # Return statement at top-level (not recommended, but parseable)
         if self.match(TokenType.RETURN):
@@ -565,7 +703,7 @@ class Parser:
         expr = self.expr_parser.parse_expression()
 
         if expr is None:
-            raise ParseError(f"Could not parse expression at line {self.peek().line}")
+            self.raise_parser_error(f"Could not parse expression at line {self.peek().line}")
 
         return expr
 
@@ -644,7 +782,7 @@ class Parser:
         
         # Parse the identifier
         if not self.check(TokenType.IDENTIFIER):
-            raise ParseError("Expected identifier after 'final'")
+            self.raise_parser_error("Expected identifier after 'final'")
         
         identifier = self.parse_expression()
         
@@ -672,12 +810,12 @@ class Parser:
         
         # Must have assignment for final variables
         if not self.match(TokenType.ASSIGN):
-            raise ParseError("Final variables must be initialized")
+            self.raise_parser_error("Final variables must be initialized")
         
         # Parse the value
         value = self.parse_expression()
         if value is None:
-            raise ParseError("Expected value in final declaration")
+            self.raise_parser_error("Expected value in final declaration")
         
         # Consume optional semicolon
         self.match(TokenType.SEMICOLON)
@@ -691,12 +829,12 @@ class Parser:
         # Parse condition
         condition = self.parse_expression(context="condition")
         if condition is None:
-            raise ParseError("Expected condition after 'if'")
+            self.raise_parser_error("Expected condition after 'if'")
 
         # Validate it's not an assignment
         from spice.parser.ast_nodes import AssignmentExpression
         if isinstance(condition, AssignmentExpression):
-            raise ParseError("Assignment expressions are not allowed as 'if' conditions")
+            self.raise_parser_error("Assignment expressions are not allowed as 'if' conditions")
 
         self.consume(TokenType.LBRACE, "Expected '{' after if condition")
         then_body = self.parse_block()
@@ -721,7 +859,7 @@ class Parser:
 
         condition = self.parse_expression(context="condition")
         if condition is None:
-            raise ParseError("Expected condition after 'while'")
+            self.raise_parser_error("Expected condition after 'while'")
 
         if has_parens:
             self.consume(TokenType.RPAREN, "Expected ')' after while condition")
@@ -729,7 +867,7 @@ class Parser:
         # Validate it's not an assignment
         from spice.parser.ast_nodes import AssignmentExpression
         if isinstance(condition, AssignmentExpression):
-            raise ParseError("Assignment expressions are not allowed as 'while' conditions")
+            self.raise_parser_error("Assignment expressions are not allowed as 'while' conditions")
 
         self.consume(TokenType.LBRACE, "Expected '{' after while condition")
         body = self.parse_block()
@@ -745,7 +883,7 @@ class Parser:
 
         target = self.parse_expression()
         if target is None:
-            raise ParseError("Expected target in for statement")
+            self.raise_parser_error("Expected target in for statement")
 
         if has_parens:
             self.consume(TokenType.RPAREN, "Expected ')' after for header")
@@ -763,7 +901,7 @@ class Parser:
 
         expr = self.parse_expression()
         if expr is None:
-            raise ParseError("Expected expression after 'switch('")
+            self.raise_parser_error("Expected expression after 'switch('")
 
         self.consume(TokenType.RPAREN, "Expected ')' after switch expression")
         self.consume(TokenType.LBRACE, "Expected '{' after switch header")
@@ -775,7 +913,7 @@ class Parser:
             if self.match(TokenType.CASE):
                 case_value = self.parse_expression()
                 if case_value is None:
-                    raise ParseError("Expected value after 'case'")
+                    self.raise_parser_error("Expected value after 'case'")
 
                 self.consume(TokenType.COLON, "Expected ':' after case value")
 
@@ -909,7 +1047,7 @@ class Parser:
             )
 
         else:
-            raise ParseError("Expected 'import' or 'from' keyword")
+            self.raise_parser_error("Expected 'import' or 'from' keyword")
 
 
     def parse_block(self) -> List[Any]:

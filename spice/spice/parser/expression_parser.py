@@ -9,8 +9,6 @@ from spice.parser.ast_nodes import (
     SubscriptExpression, SliceExpression, ComprehensionExpression,
     DictEntry
 )
-from spice.errors import ParserError
-
 from spice.printils import expression_parser_log
 
 
@@ -55,7 +53,7 @@ class ExpressionParser:
             op = self.parser.advance().value
             right = self.parse_assignment(context=context)
             if right is None:
-                raise ParserError("Expected expression after assignment operator")
+                self.parser.raise_parser_error("Expected expression after assignment operator")
             return AssignmentExpression(target=expr, value=right, operator=op)
 
         # +=, -=, *=, /=, %=, **=, //=
@@ -73,7 +71,7 @@ class ExpressionParser:
             if self.parser.match(token_type):
                 right = self.parse_assignment(context=context)
                 if right is None:
-                    raise ParserError(f"Expected expression after {op}")
+                    self.parser.raise_parser_error(f"Expected expression after {op}")
                 return AssignmentExpression(target=expr, value=right, operator=op)
 
         return expr
@@ -87,7 +85,7 @@ class ExpressionParser:
             op = self.parser.previous().value
             right = self.parse_logical_and(context=context)
             if right is None:
-                raise ParserError("Expected expression after 'or'")
+                self.parser.raise_parser_error("Expected expression after 'or'")
             expr = LogicalExpression(operator=op, left=expr, right=right)
 
         return expr
@@ -101,7 +99,7 @@ class ExpressionParser:
             op = self.parser.previous().value
             right = self.parse_membership(context=context)
             if right is None:
-                raise ParserError("Expected expression after 'and'")
+                self.parser.raise_parser_error("Expected expression after 'and'")
             expr = LogicalExpression(operator=op, left=expr, right=right)
 
         return expr
@@ -116,7 +114,7 @@ class ExpressionParser:
             if self.parser.match(TokenType.IN):
                 right = self.parse_equality(context=context)
                 if right is None:
-                    raise ParserError("Expected expression after 'in'")
+                    self.parser.raise_parser_error("Expected expression after 'in'")
                 expr = BinaryExpression(operator='in', left=expr, right=right)
 
             # not
@@ -124,7 +122,7 @@ class ExpressionParser:
                 self.parser.advance()  # consume 'in'
                 right = self.parse_equality(context=context)
                 if right is None:
-                    raise ParserError("Expected expression after 'not in'")
+                    self.parser.raise_parser_error("Expected expression after 'not in'")
                 expr = BinaryExpression(operator='not in', left=expr, right=right)
 
             # is
@@ -132,12 +130,12 @@ class ExpressionParser:
                 if self.parser.match(TokenType.NOT):
                     right = self.parse_equality(context=context)
                     if right is None:
-                        raise ParserError("Expected expression after 'is not'")
+                        self.parser.raise_parser_error("Expected expression after 'is not'")
                     expr = BinaryExpression(operator='is not', left=expr, right=right)
                 else:
                     right = self.parse_equality(context=context)
                     if right is None:
-                        raise ParserError("Expected expression after 'is'")
+                        self.parser.raise_parser_error("Expected expression after 'is'")
                     expr = BinaryExpression(operator='is', left=expr, right=right)
 
             else:
@@ -155,7 +153,7 @@ class ExpressionParser:
             op = self.parser.previous().value
             right = self.parse_comparison(context=context)
             if right is None:
-                raise ParserError(f"Expected expression after '{op}'")
+                self.parser.raise_parser_error(f"Expected expression after '{op}'")
             expr = BinaryExpression(operator=op, left=expr, right=right)
 
         return expr
@@ -171,7 +169,7 @@ class ExpressionParser:
             op = self.parser.previous().value
             right = self.parse_addition(context=context)
             if right is None:
-                raise ParserError(f"Expected expression after '{op}'")
+                self.parser.raise_parser_error(f"Expected expression after '{op}'")
             expr = BinaryExpression(operator=op, left=expr, right=right)
 
         return expr
@@ -186,7 +184,7 @@ class ExpressionParser:
             op = self.parser.previous().value
             right = self.parse_multiplication(context=context)
             if right is None:
-                raise ParserError(f"Expected expression after '{op}'")
+                self.parser.raise_parser_error(f"Expected expression after '{op}'")
             expr = BinaryExpression(operator=op, left=expr, right=right)
 
         return expr
@@ -202,7 +200,7 @@ class ExpressionParser:
             op = self.parser.previous().value
             right = self.parse_exponentiation(context=context)
             if right is None:
-                raise ParserError(f"Expected expression after '{op}'")
+                self.parser.raise_parser_error(f"Expected expression after '{op}'")
             expr = BinaryExpression(operator=op, left=expr, right=right)
 
         return expr
@@ -218,7 +216,7 @@ class ExpressionParser:
             # Right associative - recurse at same level
             right = self.parse_exponentiation(context=context)
             if right is None:
-                raise ParserError("Expected expression after '**'")
+                self.parser.raise_parser_error("Expected expression after '**'")
             return BinaryExpression(operator=op, left=expr, right=right)
 
         return expr
@@ -232,7 +230,7 @@ class ExpressionParser:
             op = self.parser.previous().value
             expr = self.parse_unary(context=context)  # Allow chaining: not not x
             if expr is None:
-                raise ParserError("Expected expression after 'not'")
+                self.parser.raise_parser_error("Expected expression after 'not'")
             return UnaryExpression(operator=op, operand=expr)
 
         # -
@@ -240,7 +238,7 @@ class ExpressionParser:
             op = self.parser.previous().value
             expr = self.parse_unary(context=context)
             if expr is None:
-                raise ParserError("Expected expression after '-'")
+                self.parser.raise_parser_error("Expected expression after '-'")
             return UnaryExpression(operator=op, operand=expr)
 
         return self.parse_postfix()
@@ -260,7 +258,7 @@ class ExpressionParser:
                 expression_parser_log.info("Parsing postfix .")
 
                 if not self.parser.check(TokenType.IDENTIFIER):
-                    raise ParserError("Expected attribute name after '.'")
+                    self.parser.raise_parser_error("Expected attribute name after '.'")
                 else:
                     expression_parser_log.info("Found attribute: ", self.parser.peek().value)
                 attr = self.parser.advance().value
@@ -314,7 +312,7 @@ class ExpressionParser:
             # Parse first expression
             first_expr = self.parse_expression(context)
             if first_expr is None:
-                raise ParserError("Expected expression in list")
+                self.parser.raise_parser_error("Expected expression in list")
 
             # Check if it's a list comprehension
             if self.parser.check(TokenType.FOR):
@@ -325,7 +323,7 @@ class ExpressionParser:
             while self.parser.match(TokenType.COMMA):
                 elem = self.parse_expression(context)
                 if elem is None:
-                    raise ParserError("Expected expression in list")
+                    self.parser.raise_parser_error("Expected expression in list")
                 elements.append(elem)
 
             self.parser.consume(TokenType.RBRACKET, "Expected ']' after list elements")
@@ -343,14 +341,14 @@ class ExpressionParser:
                 # Parse first element/expression
                 first_expr = self.parse_expression(context)
                 if first_expr is None:
-                    raise ParserError("Expected expression in set/dict")
+                    self.parser.raise_parser_error("Expected expression in set/dict")
 
                 # Check what type of literal/comprehension this is
                 if self.parser.match(TokenType.COLON):
                     # It's a dict (either literal or comprehension)
                     value_expr = self.parse_expression(context)
                     if value_expr is None:
-                        raise ParserError("Expected value after ':' in dict")
+                        self.parser.raise_parser_error("Expected value after ':' in dict")
 
                     # Check for dict comprehension
                     if self.parser.check(TokenType.FOR):
@@ -372,7 +370,7 @@ class ExpressionParser:
                         # Parse value
                         value = self.parse_expression(context)
                         if value is None:
-                            raise ParserError("Expected value in dict")
+                            self.parser.raise_parser_error("Expected value in dict")
 
                         elements.append(DictEntry(key=key, value=value))
 
@@ -437,7 +435,7 @@ class ExpressionParser:
             # Parse first expression
             first_expr = self.parse_expression(context=context)
             if first_expr is None:
-                raise ParserError("Expected expression after '('")
+                self.parser.raise_parser_error("Expected expression after '('")
 
             # Check for generator expression
             if self.parser.check(TokenType.FOR):
@@ -527,20 +525,20 @@ class ExpressionParser:
                         # Named argument
                         value = self.parse_expression(context=context)
                         if value is None:
-                            raise ParserError(f"Expected value for argument '{name}'")
+                            self.parser.raise_parser_error(f"Expected value for argument '{name}'")
                         args.append(ArgumentExpression(name=name, value=value))
                     else:
                         # Not a named argument, backtrack
                         self.parser.current = checkpoint
                         expr = self.parse_expression(context=context)
                         if expr is None:
-                            raise ParserError("Expected expression as argument")
+                            self.parser.raise_parser_error("Expected expression as argument")
                         args.append(expr)
                 else:
                     # Positional argument
                     expr = self.parse_expression(context=context)
                     if expr is None:
-                        raise ParserError("Expected expression as argument")
+                        self.parser.raise_parser_error("Expected expression as argument")
                     args.append(expr)
 
                 if not self.parser.match(TokenType.COMMA):
@@ -558,14 +556,14 @@ class ExpressionParser:
         """Parse subscript index or slice notation [start:stop:step]."""
         # Check for empty subscript
         if self.parser.check(TokenType.RBRACKET):
-            raise ParserError("Empty subscript not allowed")
+            self.parser.raise_parser_error("Empty subscript not allowed")
 
         # Parse the first expression (could be start of slice or single index)
         first_expr = None
         if not self.parser.check(TokenType.COLON):
             first_expr = self.parse_expression()
             if first_expr is None:
-                raise ParserError("Expected expression in subscript")
+                self.parser.raise_parser_error("Expected expression in subscript")
 
         # Check if this is a slice (contains :)
         if self.parser.check(TokenType.COLON):
@@ -581,7 +579,7 @@ class ExpressionParser:
             if not self.parser.check(TokenType.COLON) and not self.parser.check(TokenType.RBRACKET):
                 stop = self.parse_expression()
                 if stop is None:
-                    raise ParserError("Expected expression for slice stop")
+                    self.parser.raise_parser_error("Expected expression for slice stop")
 
             # Check for second colon (step)
             if self.parser.match(TokenType.COLON):
@@ -589,13 +587,13 @@ class ExpressionParser:
                 if not self.parser.check(TokenType.RBRACKET):
                     step = self.parse_expression()
                     if step is None:
-                        raise ParserError("Expected expression for slice step")
+                        self.parser.raise_parser_error("Expected expression for slice step")
 
             return SliceExpression(start=start, stop=stop, step=step)
         else:
             # This is a simple index
             if first_expr is None:
-                raise ParserError("Expected expression in subscript")
+                self.parser.raise_parser_error("Expected expression in subscript")
             return first_expr
 
     # Helper Methods
@@ -635,7 +633,7 @@ class ExpressionParser:
         # Parse target (loop variable)
         target = self.parse_expression()
         if target is None:
-            raise ParserError("Expected target variable in comprehension")
+            self.parser.raise_parser_error("Expected target variable in comprehension")
 
         # Consume 'in'
         self.parser.consume(TokenType.IN, "Expected 'in' in comprehension")
@@ -645,14 +643,14 @@ class ExpressionParser:
         # So we parse with a limited context
         iter_expr = self._parse_comprehension_iter()
         if iter_expr is None:
-            raise ParserError("Expected iterable in comprehension")
+            self.parser.raise_parser_error("Expected iterable in comprehension")
 
         # Optional: if condition
         condition = None
         if self.parser.match(TokenType.IF):
             condition = self._parse_comprehension_condition()
             if condition is None:
-                raise ParserError("Expected condition after 'if' in comprehension")
+                self.parser.raise_parser_error("Expected condition after 'if' in comprehension")
 
         # Handle closing bracket/brace based on comp_type
         if comp_type == 'list':

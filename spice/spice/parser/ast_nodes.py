@@ -89,13 +89,14 @@ class ClassDeclaration(ASTNode):
     interfaces: List[str] = field(default_factory=list)  # Interfaces implemented with 'implements'
     is_abstract: bool = False
     is_final: bool = False
+    compiler_flags: List[str] = field(default_factory=list)
 
     def accept(self, visitor):
         return visitor.visit_ClassDeclaration(self)
 
     def __str__(self) -> str:
         ret = f"ClassDeclaration(name={self.name}, bases={self.bases}, interfaces={self.interfaces}, "
-        ret += f"is_abstract={self.is_abstract}, is_final={self.is_final})"
+        ret += f"is_abstract={self.is_abstract}, is_final={self.is_final}, compiler_flags={self.compiler_flags})"
         return ret
 
 
@@ -110,6 +111,7 @@ class FunctionDeclaration(ASTNode):
     is_abstract: bool = False
     is_final: bool = False
     decorators: List[str] = field(default_factory=list)
+    compiler_flags: List[str] = field(default_factory=list)
 
     def accept(self, visitor):
         return visitor.visit_FunctionDeclaration(self)
@@ -119,7 +121,7 @@ class FunctionDeclaration(ASTNode):
         ret += ", ".join(f"{param}" for param in self.params)
         ret += f"], body={self.body}, return_type={self.return_type}, "
         ret += f"is_static={self.is_static}, is_abstract={self.is_abstract}, is_final={self.is_final}, "
-        ret += f"decorators={self.decorators})"
+        ret += f"decorators={self.decorators}, compiler_flags={self.compiler_flags})"
         return ret
 
 

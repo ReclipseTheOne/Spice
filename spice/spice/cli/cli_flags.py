@@ -11,7 +11,7 @@ class CLI_FLAGS:
         check: bool = False,
         watch: bool = False,
         verbose: bool = False,
-        type_check: str = '',
+        type_check: bool = False,
         no_final_check: bool = False,
         runtime_checks: bool = False,
     ):  

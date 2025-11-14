@@ -25,6 +25,11 @@ class TransformError(SpiceError):
     """Transformation error."""
     pass
 
+
+class TransformerError(TransformError):
+    """Transformer-specific error."""
+    pass
+
 class ImportError(SpiceError):
     """Import resolution error."""
     pass

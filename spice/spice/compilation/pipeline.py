@@ -137,7 +137,7 @@ class SpicePipeline:
 
         pipeline_log.custom("pipeline", f"Transforming file: {file.path.resolve().as_posix()}")
 
-        transformer: Transformer = Transformer()
+        transformer: Transformer = Transformer(enable_runtime_final_checks=flags.runtime_checks)
         file.py_code = transformer.transform(file.ast)
 
         if isinstance(flags.output, Path):
@@ -182,7 +182,14 @@ class SpicePipeline:
 
         pipeline_log.custom("pipeline", f"Verifying file: {file.path.resolve().as_posix()}")
         
-        from spice.compilation.checks import FinalChecker
+        from spice.compilation.checks import FinalChecker, MethodOverloadResolver
+        overload_resolver = MethodOverloadResolver()
+        if not overload_resolver.check(file):
+            exception = "Invalid method overloads detected:\n"
+            for error in overload_resolver.errors:
+                exception += f" - {error}\n"
+            raise SpiceCompileTimeError(exception)
+
         final_checker = FinalChecker()
         if (not final_checker.check(file) and not flags.no_final_check):
             exception = "Instance(s) declared final found reassigned: \n"

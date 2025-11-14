@@ -13,12 +13,12 @@ import click
 @click.option('-c', '--check', is_flag=True, help='Check syntax without generating output')
 @click.option('-w', '--watch', is_flag=True, help='Watch file for changes. This option disables verbosity.')
 @click.option('-v', '--verbose', is_flag=True, help='Verbose output')
-@click.option('-t', '--type-check', type=click.Choice(['none', 'warnings', 'strict']),
-              default='none', help='Type checking level (default: none)')
+@click.option('-t', '--type-check', is_flag=True,
+              help='Enable typing everything (single static typing mode)')
 @click.option('-nf', '--no-final-check', is_flag=True, help='Skip final type checks at compilation')
 @click.option('--runtime-checks', is_flag=True, help='Add runtime type checking to output')
 @click.version_option(version='0.1.0', prog_name='spicy')
-def from_cli(source: str, output: Optional[str], check: bool, watch: bool, verbose: bool, type_check: str, no_final_check: bool, runtime_checks: bool):
+def from_cli(source: str, output: Optional[str], check: bool, watch: bool, verbose: bool, type_check: bool, no_final_check: bool, runtime_checks: bool):
     """Compile Spice (.spc) files to Python."""
     flags: CLI_FLAGS = CLI_FLAGS(
         source=Path(source),

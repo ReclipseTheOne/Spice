@@ -1,5 +1,7 @@
 """Transform Spice AST to Python code."""
 
+from typing import Dict, List, Any
+
 # Import line will be very long but CTRL + Click doesn't work on * imports and I hate it
 from spice.parser import (
     Module, InterfaceDeclaration, MethodSignature, ClassDeclaration,
@@ -14,14 +16,17 @@ from spice.parser import (
 
 from spice.printils import transformer_log
 from spice import version
+from spice.errors import TransformerError
 
 class Transformer:
     """Transform Spice AST to Python code."""
 
-    def __init__(self):
+    def __init__(self, enable_runtime_final_checks: bool = False):
         self.indent_level = 0
-        self.output = []
+        self.output: List[str] = []
         self.in_class = False
+        self.enable_runtime_final_checks = enable_runtime_final_checks
+        self.final_scope_stack: List[Dict[str, str]] = [dict()]
 
     def transform(self, ast: Module) -> str:
         """Transform AST to Python code."""
@@ -35,6 +40,7 @@ class Transformer:
             f'Bugfixes and issues are welcomed at: https://github.com/ReclipseTheOne/Spice <3\n',
             f'"""\n\n'
         ]
+        self.final_scope_stack = [dict()]
         self.visit_module(ast)
 
         result = ''.join(self.output)
@@ -159,7 +165,9 @@ class Transformer:
         if node.is_final:
             transformer_log.info("Class is final")
 
+        previous_in_class = self.in_class
         self.in_class = True
+        self._push_final_scope()
 
         # Handle inheritance
         bases = []
@@ -199,12 +207,14 @@ class Transformer:
                     self._new_line()
 
         self.indent_level -= 1
-        self.in_class = False
+        self._pop_final_scope()
+        self.in_class = previous_in_class
 
 
     def visit_FunctionDeclaration(self, node: FunctionDeclaration):
         """Visit function declaration node."""
         transformer_log.custom("transform", f"Transforming {'method' if self.in_class else 'function'} '{node.name}'")
+        self._push_final_scope()
         if node.is_abstract:
             transformer_log.info("Method is abstract")
         if node.is_final:
@@ -264,6 +274,7 @@ class Transformer:
                 self.visit(stmt)
 
         self.indent_level -= 1
+        self._pop_final_scope()
 
 
     def visit_ExpressionStatement(self, node: ExpressionStatement):
@@ -309,7 +320,11 @@ class Transformer:
     def visit_IdentifierExpression(self, node: IdentifierExpression):
         """Visit identifier expression node."""
         transformer_log.custom("transform", f"Transforming identifier: {node.name}")
-        self.output.append(node.name)
+        inline_value = self._resolve_final_value(node.name)
+        if inline_value is not None:
+            self.output.append(inline_value)
+        else:
+            self.output.append(node.name)
 
 
     def visit_AttributeExpression(self, node: AttributeExpression):
@@ -673,14 +688,10 @@ class Transformer:
             self.output.append(self._indent(f"{target_str}: {node.type_annotation} = {value_str}\n"))
         else:
             self.output.append(self._indent(f"{target_str} = {value_str}\n"))
-        
-        # Store final variable name for compile-time checking
-        if not hasattr(self, 'final_variables'):
-            self.final_variables = set()
-        
+
         if isinstance(node.target, IdentifierExpression):
-            self.final_variables.add(node.target.name)
-        
+            self._register_final_value(node.target.name, value_str)
+
         # Add runtime protection (optional, can be enabled with a flag)
         if self.enable_runtime_final_checks:
             self._add_final_runtime_check(target_str)
@@ -707,6 +718,26 @@ class Transformer:
         if param.default:
             result += f" = {param.default}"
         return result
+
+    def raise_transformer_error(self, node: Any, message: str) -> None:
+        """Raise TransformerError with contextual AST node information."""
+        node_description = self._describe_node(node)
+        raise TransformerError(f"{message}\n\nNode context: {node_description}")
+
+    def _describe_node(self, node: Any) -> str:
+        """Generate a readable description of an AST node for error messages."""
+        if node is None:
+            return "<no node provided>"
+
+        node_type = type(node).__name__
+        try:
+            node_repr = str(node)
+        except Exception:
+            node_repr = repr(node)
+
+        if node_repr and node_repr != node_type:
+            return f"{node_type}: {node_repr}"
+        return node_type
 
     def _new_line(self) -> None:
         """Add a new line with the current indentation level."""
@@ -735,3 +766,25 @@ def _set_{var_name}(value):
 {var_name} = property(_get_{var_name}, _set_{var_name})
 """
         self.output.append(self._indent(protection_code))
+
+    def _push_final_scope(self):
+        """Push a new final scope onto the stack."""
+        self.final_scope_stack.append({})
+
+    def _pop_final_scope(self):
+        """Pop the current final scope if possible."""
+        if len(self.final_scope_stack) > 1:
+            self.final_scope_stack.pop()
+
+    def _register_final_value(self, name: str, value: str):
+        """Register a final identifier with its compile-time value."""
+        if not name:
+            return
+        self.final_scope_stack[-1][name] = value
+
+    def _resolve_final_value(self, name: str):
+        """Resolve a final identifier to its compile-time value."""
+        for scope in reversed(self.final_scope_stack):
+            if name in scope:
+                return scope[name]
+        return None

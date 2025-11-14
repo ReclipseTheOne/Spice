@@ -1,6 +1,6 @@
 """Type system design for Spice language."""
 
-from typing import Dict, List, Any, Optional, Union
+from typing import Dict, List, Any, Optional
 from enum import Enum
 
 
@@ -108,14 +108,6 @@ class TypeChecker:
             f"Attribute '{attr}' not found on type {obj_type}{' at ' + location if location else ''}"
         )
         return None
-
-
-# Type enforcement levels
-class TypeEnforcement(Enum):
-    """Levels of type enforcement."""
-    NONE = "none"          # No type checking (like Python)
-    WARNINGS = "warnings"  # Type errors as warnings
-    STRICT = "strict"      # Type errors as compilation errors
 
 
 def create_runtime_type_checker():

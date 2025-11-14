@@ -26,3 +26,4 @@ class SpiceFile:
         self.import_paths: list[Path] = []
         self.spc_imports: list[SpiceFile] = []
         self.py_imports: list[Path] = []
+        self.method_overload_table: dict[str, dict[str, str]] = {}
