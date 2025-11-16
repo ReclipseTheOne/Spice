@@ -3,7 +3,7 @@
 import pytest
 from spice.lexer import Lexer
 from spice.parser import Parser
-from spice.parser.ast_nodes import InterfaceDeclaration
+from spice.parser.ast_nodes import InterfaceDeclaration, AnnotatedAssignment, ExpressionStatement
 from testutils import (
     assert_contains_all, assert_count, log_test_start,
     log_test_result, safe_assert
@@ -31,7 +31,7 @@ class TestParser:
         ast = self.parse_source(source)
 
         # Log parsing result
-        print(f"✅ Parsed AST with {len(ast.body)} top-level nodes", flush=True)
+        print(f"Parsed AST with {len(ast.body)} top-level nodes", flush=True)
         print(f"   First node type: {type(ast.body[0]).__name__}", flush=True)
 
         safe_assert(len(ast.body) == 1, f"Expected 1 AST node, got {len(ast.body)}")
@@ -77,7 +77,7 @@ class TestParser:
         interface = ast.body[0]
 
         # Log parsing result
-        print(f"✅ Parsed interface with inheritance", flush=True)
+        print(f"Parsed interface with inheritance", flush=True)
         print(f"   Interface name: {interface.name}", flush=True)
         print(f"   Base interfaces: {interface.base_interfaces}", flush=True)
 
@@ -100,7 +100,7 @@ class TestParser:
         interface = ast.body[0]
 
         # Log parsing result
-        print(f"✅ Parsed empty interface", flush=True)
+        print(f"Parsed empty interface", flush=True)
         print(f"   Interface name: {interface.name}", flush=True)
         print(f"   Methods count: {len(interface.methods)}", flush=True)
 
@@ -123,7 +123,7 @@ class TestParser:
         method = interface.methods[0]
 
         # Log parsing result
-        print(f"✅ Parsed method with default parameter", flush=True)
+        print(f"Parsed method with default parameter", flush=True)
         print(f"   Method name: {method.name}", flush=True)
         print(f"   Parameters count: {len(method.params)}", flush=True)
         print(f"   Second param default: {method.params[1].default}", flush=True)
@@ -134,6 +134,31 @@ class TestParser:
                    f"Expected second param name 'y', got '{method.params[1].name}'")
         safe_assert(method.params[1].default == "0",
                    f"Expected default value '0', got '{method.params[1].default}'")
+
+    def test_typed_variable_declaration(self):
+        """Typed variables should be parsed correctly."""
+        source = """a: int
+b: List[int] = [];
+"""
+        log_test_start("test_typed_variable_declaration", source)
+        ast = self.parse_source(source)
+        log_test_result("test_typed_variable_declaration", str(ast))
+
+        safe_assert(len(ast.body) == 2, f"Expected 2 statements, got {len(ast.body)}")
+
+        first_stmt = ast.body[0]
+        safe_assert(isinstance(first_stmt, ExpressionStatement), "First statement should be expression")
+        first_expr = first_stmt.expression
+        safe_assert(isinstance(first_expr, AnnotatedAssignment), "First statement should be typed assignment")
+        safe_assert(first_expr.type_annotation == "int", f"Expected 'int', got {first_expr.type_annotation}")
+        safe_assert(first_expr.value is None, "First typed declaration should not have a value")
+
+        second_stmt = ast.body[1]
+        safe_assert(isinstance(second_stmt, ExpressionStatement), "Second statement should be expression")
+        second_expr = second_stmt.expression
+        safe_assert(isinstance(second_expr, AnnotatedAssignment), "Second statement should be typed assignment")
+        safe_assert(second_expr.type_annotation == "List[int]", f"Unexpected type annotation {second_expr.type_annotation}")
+        safe_assert(second_expr.value is not None, "Second typed declaration should include an initializer")
 
     @pytest.mark.skip(reason="Python-style parsing not yet implemented")
     def test_python_style_interface(self):

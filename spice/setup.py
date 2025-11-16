@@ -16,7 +16,8 @@ setup(
     install_requires=[
         "click>=8.0",
         "colorama>=0.4",
-        "rites>=0.5.3"
+        "rites>=0.5.3",
+        "multipledispatch>=1.0.0",
     ],
     extras_require={
         "dev": [

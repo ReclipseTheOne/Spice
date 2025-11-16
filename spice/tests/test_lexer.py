@@ -32,7 +32,7 @@ class TestLexer:
 
         # Log token information
         token_info = "\n".join([f"   {i}: {token.type.name} = '{token.value}'" for i, token in enumerate(tokens)])
-        print(f"✅ Tokenized {len(tokens)} tokens:")
+        print(f"Tokenized {len(tokens)} tokens:")
         print(token_info, flush=True)
 
         safe_assert(
@@ -60,7 +60,7 @@ class TestLexer:
 
         # Log token information
         token_info = "\n".join([f"   {i}: {token.type.name} = '{token.value}'" for i, token in enumerate(tokens)])
-        print(f"✅ Tokenized {len(tokens)} tokens:")
+        print(f"Tokenized {len(tokens)} tokens:")
         print(token_info, flush=True)
 
         # Check key tokens with enhanced assertions
@@ -87,7 +87,7 @@ class TestLexer:
 
         # Log token information
         token_info = "\n".join([f"   {i}: {token.type.name} = '{token.value}'" for i, token in enumerate(tokens)])
-        print(f"✅ Tokenized {len(tokens)} tokens:")
+        print(f"Tokenized {len(tokens)} tokens:")
         print(token_info, flush=True)
 
         safe_assert(tokens[0].type == TokenType.NUMBER, "First token should be NUMBER")
@@ -121,7 +121,7 @@ class TestLexer:
 
         # Log token information
         token_info = "\n".join([f"   {i}: {token.type.name} = '{token.value}'" for i, token in enumerate(tokens)])
-        print(f"✅ Tokenized {len(tokens)} tokens:")
+        print(f"Tokenized {len(tokens)} tokens:")
         print(token_info, flush=True)
 
         # Check each expected operator type
@@ -148,7 +148,7 @@ x = 5  # inline comment"""
 
         # Log token information
         token_info = "\n".join([f"   {i}: {token.type.name} = '{token.value}'" for i, token in enumerate(tokens)])
-        print(f"✅ Tokenized {len(tokens)} tokens:")
+        print(f"Tokenized {len(tokens)} tokens:")
         print(token_info, flush=True)
 
         # Comments should be tokenized but can be filtered later
@@ -176,7 +176,7 @@ x = 5  # inline comment"""
 
         # Log token information
         token_info = "\n".join([f"   {i}: {token.type.name} = '{token.value}'" for i, token in enumerate(tokens)])
-        print(f"✅ Tokenized {len(tokens)} tokens:")
+        print(f"Tokenized {len(tokens)} tokens:")
         print(token_info, flush=True)
 
         # Verify structure
@@ -205,6 +205,6 @@ x = 5  # inline comment"""
             tokens = lexer.tokenize(source)
             safe_assert(False, "Expected SyntaxError for invalid character '@'")
         except SyntaxError as e:
-            print(f"✅ Correctly caught SyntaxError: {e}", flush=True)
+            print(f"Correctly caught SyntaxError: {e}", flush=True)
             # Test passes if we get here
             assert True

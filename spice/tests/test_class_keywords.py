@@ -22,7 +22,7 @@ class TestClassKeywords:
             transformer = Transformer()
             return transformer.transform(ast)
         except Exception as e:
-            print(f"\n❌ PARSING/TRANSFORMATION FAILED: {type(e).__name__}", flush=True)
+            print(f"\nPARSING/TRANSFORMATION FAILED: {type(e).__name__}", flush=True)
             print(f"   Error: {e}", flush=True)
             print(f"   Source code that failed:", flush=True)
             for i, line in enumerate(source.strip().split('\n'), 1):

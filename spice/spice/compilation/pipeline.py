@@ -18,6 +18,7 @@ import site
 ALL_IMPORTED_PATHS: list[Path] = []
 LOOKUP_PATHS: list[Path] = []
 
+
 def add_and_check_import_path(path: Path):
     global ALL_IMPORTED_PATHS
 
@@ -29,6 +30,7 @@ def add_and_check_import_path(path: Path):
         raise ImportError(exception)
 
     ALL_IMPORTED_PATHS.append(path.resolve())
+
 
 def add_and_check_lookup_path(path: Path):
     global LOOKUP_PATHS
@@ -55,7 +57,7 @@ class SpicePipeline:
         """Parse and verify syntactically the current Spice File, generating the file's AST"""
 
         pipeline_log.custom("pipeline", f"Parsing file: {file.path.resolve().as_posix()}")
-        
+
         parser: Parser = Parser()
         file.ast = parser.parse(file.tokens)
 
@@ -74,7 +76,7 @@ class SpicePipeline:
                 left_to_resolve.append(stmt)
                 if flags.verbose:
                     pipeline_log.custom("pipeline", f"Added import statement: {stmt.module}")
-        
+
         for path in lookup:
             if path.exists():
                 for stmt in left_to_resolve:
@@ -102,10 +104,10 @@ class SpicePipeline:
 
                             imported_file = SpiceFile(possible_spc_path)
                             file.spc_imports.append(imported_file)
-    
+
                             found = True
                             break
-                    
+
                     for possible_py_path in possible_py_paths:
                         if found: break
 
@@ -124,7 +126,7 @@ class SpicePipeline:
             for path in LOOKUP_PATHS:
                 exception += f" - {path.resolve().as_posix()}\n"
             raise ImportError(exception)
-        
+
         if flags.verbose and len(file.spc_imports) > 0:
             msg = f"Added pipeline divergence from file {file.path.resolve().as_posix()} to:\n"
             for spc in file.spc_imports:
@@ -164,7 +166,7 @@ class SpicePipeline:
         global_sites = site.getsitepackages()
         for site_path_str in global_sites:
             add_and_check_lookup_path(Path(site_path_str))
-        
+
 
         SpicePipeline.tokenize(spc_file, flags)
         SpicePipeline.parse(spc_file, flags)
@@ -181,14 +183,34 @@ class SpicePipeline:
         """Run compile time checks on all the Spice File Tree and write the tree to disk"""
 
         pipeline_log.custom("pipeline", f"Verifying file: {file.path.resolve().as_posix()}")
-        
-        from spice.compilation.checks import FinalChecker, MethodOverloadResolver
+
+        from spice.compilation.checks import (
+            FinalChecker,
+            MethodOverloadResolver,
+            SymbolTableBuilder,
+            TypeChecker,
+        )
+
+        symbol_builder = SymbolTableBuilder()
+        symbol_builder.check(file)
+
         overload_resolver = MethodOverloadResolver()
         if not overload_resolver.check(file):
             exception = "Invalid method overloads detected:\n"
             for error in overload_resolver.errors:
                 exception += f" - {error}\n"
             raise SpiceCompileTimeError(exception)
+        else:
+            pipeline_log.custom("pipeline", "No invalid method overloads present. Overloads added successfully.")
+
+        type_checker = TypeChecker()
+        if not type_checker.check(file):
+            exception = "Type checking failed:\n"
+            for error in type_checker.errors:
+                exception += f" - {error}\n"
+            raise SpiceCompileTimeError(exception)
+        else:
+            pipeline_log.custom("pipeline", "No type errors present.")
 
         final_checker = FinalChecker()
         if (not final_checker.check(file) and not flags.no_final_check):
@@ -196,6 +218,8 @@ class SpicePipeline:
             for error in final_checker.errors:
                 exception += f" - {error}"
             raise SpiceCompileTimeError(exception)
+        else:
+            pipeline_log.custom("pipeline", "No final violations found.")
 
         SpicePipeline.transform_and_write(file, flags)
 

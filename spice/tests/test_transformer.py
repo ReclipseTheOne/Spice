@@ -1,5 +1,8 @@
 """Tests for the Spice to Python transformer."""
 
+from types import SimpleNamespace
+
+from spice.compilation.checks import MethodOverloadResolver
 from spice.lexer import Lexer
 from spice.parser import Parser
 from spice.transformer import Transformer
@@ -26,10 +29,15 @@ class TestTransformer:
 
             parser = Parser()
             ast = parser.parse(tokens)
+
+            resolver = MethodOverloadResolver()
+            fake_file = SimpleNamespace(ast=ast, method_overload_table={})
+            resolver.check(fake_file)
+
             transformer = Transformer()
             return transformer.transform(ast)
         except Exception as e:
-            print(f"\n❌ PARSING/TRANSFORMATION FAILED: {type(e).__name__}", flush=True)
+            print(f"\nPARSING/TRANSFORMATION FAILED: {type(e).__name__}", flush=True)
             print(f"   Error: {e}", flush=True)
             print(f"   Source code that failed:", flush=True)
             for i, line in enumerate(source.strip().split('\n'), 1):
@@ -83,6 +91,66 @@ class TestTransformer:
             "class Empty(Protocol):",
             "pass"
         ], "empty interface transformation")
+
+    def test_method_overload_dispatch(self):
+        """Ensure overloaded methods use multipledispatch."""
+        source = """class Calculator {
+    def add(x: int, y: int) -> int {
+        return x + y;
+    }
+
+    def add(x: str, y: str) -> str {
+        return x + y;
+    }
+}"""
+
+        log_test_start("test_method_overload_dispatch", source)
+        result = self.transform_source(source)
+        log_test_result("test_method_overload_dispatch", result)
+
+        assert_contains_all(result, [
+            "from multipledispatch import dispatch",
+            "@dispatch(int, int)",
+            "def add(self, x: int, y: int) -> int:",
+            "@dispatch(str, str)",
+            "def add(self, x: str, y: str) -> str:",
+        ], "method overload dispatch")
+
+    def test_typed_variable_transformation(self):
+        """Typed variables should preserve annotations in Python output."""
+        source = """value: str
+count: int = 5;
+"""
+        log_test_start("test_typed_variable_transformation", source)
+        result = self.transform_source(source)
+        log_test_result("test_typed_variable_transformation", result)
+
+        assert_contains_all(result, [
+            "value: str",
+            "count: int = 5",
+        ], "typed variable transformation")
+
+    def test_literal_assignment_infers_annotation(self):
+        """Plain assignments from literals should gain annotations."""
+        source = """value = 5;
+text = "hi";
+class Foo {
+    def __init__() -> None {
+        return;
+    }
+}
+
+instance = Foo();
+"""
+        log_test_start("test_literal_assignment_infers_annotation", source)
+        result = self.transform_source(source)
+        log_test_result("test_literal_assignment_infers_annotation", result)
+
+        assert_contains_all(result, [
+            "value: int = 5",
+            "text: str = 'hi'",
+            "instance: Foo = Foo()",
+        ], "literal assignment inference")
 
     def test_multiple_methods(self):
         """Test interface with multiple methods."""

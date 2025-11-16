@@ -1,12 +1,12 @@
 """Transform Spice AST to Python code."""
 
-from typing import Dict, List, Any
+from typing import Dict, List, Any, Optional
 
 # Import line will be very long but CTRL + Click doesn't work on * imports and I hate it
 from spice.parser import (
     Module, InterfaceDeclaration, MethodSignature, ClassDeclaration,
     FunctionDeclaration, ExpressionStatement, PassStatement,
-    AssignmentExpression, IdentifierExpression, AttributeExpression,
+    AssignmentExpression, AnnotatedAssignment, IdentifierExpression, AttributeExpression,
     LiteralExpression, CallExpression, ForStatement, WhileStatement,
     BinaryExpression, ReturnStatement, IfStatement, SwitchStatement,
     CaseClause, LogicalExpression, UnaryExpression, RaiseStatement,
@@ -18,6 +18,7 @@ from spice.printils import transformer_log
 from spice import version
 from spice.errors import TransformerError
 
+
 class Transformer:
     """Transform Spice AST to Python code."""
 
@@ -27,10 +28,11 @@ class Transformer:
         self.in_class = False
         self.enable_runtime_final_checks = enable_runtime_final_checks
         self.final_scope_stack: List[Dict[str, str]] = [dict()]
+        self.class_names: set[str] = set()
 
     def transform(self, ast: Module) -> str:
         """Transform AST to Python code."""
-        transformer_log.info("Starting transformation of AST to Python code") 
+        transformer_log.info("Starting transformation of AST to Python code")
 
         self.output = [
             f'"""\n',
@@ -52,6 +54,7 @@ class Transformer:
     def visit_module(self, node: Module):
         """Visit module node."""
         transformer_log.custom("transform", f"Processing module with {len(node.body)} top-level statements")
+        self.class_names = {stmt.name for stmt in node.body if isinstance(stmt, ClassDeclaration)}
 
         # Add imports if needed
         has_interfaces = any(isinstance(stmt, InterfaceDeclaration) for stmt in node.body)
@@ -60,6 +63,7 @@ class Transformer:
             isinstance(stmt, (ClassDeclaration, FunctionDeclaration)) and stmt.is_final
             for stmt in node.body
         )
+        has_dispatch = self._module_uses_dispatch(node)
 
         # Also check for final methods within class bodies
         if not has_final:
@@ -84,7 +88,11 @@ class Transformer:
             transformer_log.info("Adding import for final decorator")
             self.output.append("from typing import final\n")
 
-        if has_interfaces or has_abstract or has_final:
+        if has_dispatch:
+            transformer_log.info("Adding import for multipledispatch")
+            self.output.append("from multipledispatch import dispatch\n")
+
+        if has_interfaces or has_abstract or has_final or has_dispatch:
             self._new_line() # Add extra line after imports
 
         # Visit each statement
@@ -96,6 +104,42 @@ class Transformer:
         # Remove trailing blank line if it exists
         if self.output and self.output[-1].isspace():
             self.output.pop()
+
+    def _module_uses_dispatch(self, module: Module) -> bool:
+        """Detect whether any functions are annotated with @dispatch."""
+        stack = list(module.body)
+        while stack:
+            current = stack.pop()
+            if isinstance(current, FunctionDeclaration):
+                if any(decorator.strip().startswith("@dispatch") for decorator in current.decorators):
+                    return True
+            body = getattr(current, "body", None)
+            if isinstance(body, list):
+                stack.extend(body)
+        return False
+
+    def _render_expression(self, node) -> str:
+        """Render an expression node to a string without affecting current output."""
+        output_before = len(self.output)
+        self.visit(node)
+        rendered = ''.join(self.output[output_before:])
+        self.output = self.output[:output_before]
+        return rendered
+
+    def _infer_assignment_annotation(self, node: AssignmentExpression) -> Optional[str]:
+        if not isinstance(node.target, IdentifierExpression):
+            return None
+        if isinstance(node.value, LiteralExpression):
+            return {
+                "string": "str",
+                "number": "int",
+                "boolean": "bool",
+            }.get(node.value.literal_type)
+        if isinstance(node.value, CallExpression):
+            callee = node.value.callee
+            if isinstance(callee, IdentifierExpression) and callee.name in self.class_names:
+                return callee.name
+        return None
 
     def visit(self, node):
         """Generic visitor method."""
@@ -239,6 +283,9 @@ class Transformer:
         if node.is_final:
             decorators.append("@final")
 
+        if node.decorators:
+            decorators.extend(node.decorators)
+
         for decorator in decorators:
             self.output.append(self._indent(f"{decorator}\n"))
 
@@ -280,10 +327,18 @@ class Transformer:
     def visit_ExpressionStatement(self, node: ExpressionStatement):
         """Visit expression statement node."""
         transformer_log.custom("transform", "Transforming expression statement")
-        if node.expression:
+        expr = node.expression
+        if isinstance(expr, AssignmentExpression):
+            inferred = self._infer_assignment_annotation(expr)
+            if inferred and isinstance(expr.target, IdentifierExpression):
+                value_str = self._render_expression(expr.value)
+                self.output.append(self._indent(f"{expr.target.name}: {inferred} = {value_str}"))
+                self._new_line()
+                return
+        if expr:
             # Capture the expression output
             output_before = len(self.output)
-            self.visit(node.expression)
+            self.visit(expr)
             expr_len = len(self.output) - output_before
             expr_str = ''.join(self.output[-expr_len:])
             self.output = self.output[:-expr_len]
@@ -305,16 +360,19 @@ class Transformer:
 
         # Support for +=, -=, *=, /=, etc.
         op = getattr(node, 'operator', '=')  # Default to '=' if not present
-        output_before = len(self.output)
-        self.visit(node.target)
-        target_len = len(self.output) - output_before
-        target = ''.join(self.output[-target_len:])
-        self.output = self.output[:-target_len]
-        self.visit(node.value)
-        value_len = len(self.output) - output_before
-        value = ''.join(self.output[-value_len:])
-        self.output = self.output[:-value_len]
+        target = self._render_expression(node.target)
+        value = self._render_expression(node.value)
         self.output.append(f"{target} {op} {value}")
+
+    def visit_AnnotatedAssignment(self, node: AnnotatedAssignment):
+        """Visit typed assignment expression."""
+        transformer_log.custom("transform", "Transforming annotated assignment")
+        target = self._render_expression(node.target)
+        line = f"{target}: {node.type_annotation}"
+        if node.value is not None:
+            value = self._render_expression(node.value)
+            line += f" = {value}"
+        self.output.append(line)
 
 
     def visit_IdentifierExpression(self, node: IdentifierExpression):
@@ -676,25 +734,23 @@ class Transformer:
             self.output.append(f"{{{comp_str}}}")
 
     def visit_FinalDeclaration(self, node: FinalDeclaration):
-        """Transform final variable declaration to Python with runtime checks."""
+        """Transform final variable declaration to Python"""
         transformer_log.custom("transform", "Transforming final declaration")
-        
+
         # Generate the variable assignment
         target_str = self.expr_to_str(node.target)
         value_str = self.expr_to_str(node.value)
-        
+
         # Add type annotation if present
         if node.type_annotation:
             self.output.append(self._indent(f"{target_str}: {node.type_annotation} = {value_str}\n"))
         else:
             self.output.append(self._indent(f"{target_str} = {value_str}\n"))
 
+        self.output.append(self._indent('"""Variable annotated as final at compile time. Modifying it might not even change code if inlining is applied, or even break."""\n'))
+
         if isinstance(node.target, IdentifierExpression):
             self._register_final_value(node.target.name, value_str)
-
-        # Add runtime protection (optional, can be enabled with a flag)
-        if self.enable_runtime_final_checks:
-            self._add_final_runtime_check(target_str)
 
     ### Helper methods ###
     def expr_to_str(self, expr):
@@ -752,20 +808,6 @@ class Transformer:
         """Add a new line and increase the indentation level."""
         self.indent_level += 1
         self.output.append("\n" + self._indent(""))
-
-    def _add_final_runtime_check(self, var_name: str):
-        """Add runtime check to prevent reassignment of final variables."""
-        # This creates a property-based protection
-        protection_code = f"""
-# Runtime protection for final variable {var_name}
-_final_{var_name} = {var_name}
-def _get_{var_name}():
-    return _final_{var_name}
-def _set_{var_name}(value):
-    raise TypeError("Cannot reassign final variable '{var_name}'")
-{var_name} = property(_get_{var_name}, _set_{var_name})
-"""
-        self.output.append(self._indent(protection_code))
 
     def _push_final_scope(self):
         """Push a new final scope onto the stack."""

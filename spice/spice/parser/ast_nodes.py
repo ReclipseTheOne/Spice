@@ -49,6 +49,7 @@ class InterfaceDeclaration(ASTNode):
         ret += f"], base_interfaces={self.base_interfaces})"
         return ret
 
+
 @dataclass
 class MethodSignature(ASTNode):
     """Method signature in an interface."""
@@ -164,6 +165,7 @@ class PassStatement(ASTNode):
     def __str__(self) -> str:
         return f"PassStatement(has_semicolon={self.has_semicolon})"
 
+
 @dataclass
 class ReturnStatement(ASTNode):
     """Return statement."""
@@ -189,6 +191,7 @@ class IfStatement(ASTNode):
 
     def __str__(self) -> str:
         return f"IfStatement(condition={self.condition}, then_body={self.then_body}, else_body={self.else_body})"
+
 
 @dataclass
 class ForStatement(ASTNode):
@@ -265,6 +268,23 @@ class AssignmentExpression(Expression):
 
 
 @dataclass
+class AnnotatedAssignment(Expression):
+    """Typed assignment: target: type = value (value optional)."""
+    target: Expression
+    type_annotation: str
+    value: Optional[Expression] = None
+
+    def accept(self, visitor):
+        return visitor.visit_AnnotatedAssignment(self)
+
+    def __str__(self) -> str:
+        return (
+            f"AnnotatedAssignment(target={self.target}, "
+            f"type_annotation={self.type_annotation}, value={self.value})"
+        )
+
+
+@dataclass
 class IdentifierExpression(Expression):
     """Identifier expression."""
     name: str
@@ -300,6 +320,7 @@ class LiteralExpression(Expression):
 
     def __str__(self) -> str:
         return f"LiteralExpression(value={self.value}, literal_type={self.literal_type})"
+
 
 @dataclass
 class CallExpression(Expression):
@@ -394,6 +415,7 @@ class RaiseStatement(ASTNode):
     def __str__(self) -> str:
         return f"RaiseStatement(exception={self.exception}, has_semicolon={self.has_semicolon})"
 
+
 @dataclass
 class ImportStatement(ASTNode):
     """Import statement: import module or from module import names."""
@@ -405,7 +427,7 @@ class ImportStatement(ASTNode):
 
     def accept(self, visitor):
         return visitor.visit_ImportStatement(self)
-    
+
     def __str__(self) -> str:
         ret = (
             "ImportStatement: \n"
@@ -416,6 +438,7 @@ class ImportStatement(ASTNode):
         )
         return ret
 
+
 @dataclass
 class DictEntry(Expression):
     """Dictionary key-value pair."""
@@ -424,7 +447,7 @@ class DictEntry(Expression):
 
     def accept(self, visitor):
         return visitor.visit_DictEntry(self)
-    
+
     def __str__(self) -> str:
         return f"DictEntry(key={self.key}, value={self.value})"
 
@@ -455,6 +478,7 @@ class SliceExpression(Expression):
     def __str__(self) -> str:
         return f"SliceExpression(start={self.start}, stop={self.stop}, step={self.step})"
 
+
 @dataclass
 class ComprehensionExpression(Expression):
     """Comprehension expression: [expr for target in iter if condition]"""
@@ -473,13 +497,14 @@ class ComprehensionExpression(Expression):
                 f"iter={self.iter}, condition={self.condition}, comp_type={self.comp_type}, "
                 f"key={self.key})")
 
+
 @dataclass
 class FinalDeclaration(ASTNode):
     """Final variable declaration that cannot be reassigned."""
     target: Expression
     value: Expression
     type_annotation: Optional[str] = None
-    
+
     def accept(self, visitor):
         return visitor.visit_FinalDeclaration(self)
 

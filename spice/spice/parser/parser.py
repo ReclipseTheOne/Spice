@@ -6,11 +6,13 @@ from spice.parser.ast_nodes import (
     Module, InterfaceDeclaration, MethodSignature, Parameter,
     ExpressionStatement, PassStatement, Expression, ReturnStatement,
     IfStatement, ForStatement, WhileStatement, SwitchStatement, CaseClause,
-    RaiseStatement, ImportStatement, FinalDeclaration, FunctionDeclaration
+    RaiseStatement, ImportStatement, FinalDeclaration, FunctionDeclaration,
+    IdentifierExpression, AnnotatedAssignment
 )
 from spice.errors import SpiceError, ParserError
 
 from spice.printils import parser_log
+
 
 class ParseError(SpiceError):
     """Parser error."""
@@ -215,6 +217,39 @@ class Parser:
                 break
 
         return values
+
+    def _parse_type_annotation_string(self) -> str:
+        """Parse a type annotation expression."""
+        parts: List[str] = []
+        bracket_depth = 0
+
+        stop_tokens = {TokenType.ASSIGN, TokenType.SEMICOLON, TokenType.NEWLINE, TokenType.RBRACE}
+        while not self.check(*stop_tokens):
+            if self.check(TokenType.IDENTIFIER):
+                parts.append(str(self.advance().value))
+            elif self.match(TokenType.LBRACKET):
+                parts.append('[')
+                bracket_depth += 1
+            elif self.match(TokenType.RBRACKET):
+                if bracket_depth == 0:
+                    break
+                parts.append(']')
+                bracket_depth -= 1
+            elif self.match(TokenType.COMMA):
+                parts.append(', ')
+            elif self.match(TokenType.DOT):
+                parts.append('.')
+            else:
+                break
+
+        return ''.join(parts).strip()
+
+    def _looks_like_typed_declaration(self) -> bool:
+        """Determine if the next tokens represent a typed variable declaration."""
+        if not self.check(TokenType.IDENTIFIER):
+            return False
+        next_type = self._peek_next_non_newline_type(self.current + 1)
+        return next_type == TokenType.COLON
 
     def _peek_next_non_newline_type(self, start_index: Optional[int] = None) -> TokenType:
         """Peek ahead to find the next non-newline/comment token type."""
@@ -692,6 +727,10 @@ class Parser:
             parser_log.info("Parsing import statement")
             return self.parse_import_statement()
 
+        if self._looks_like_typed_declaration():
+            parser_log.info("Parsing typed declaration at top level")
+            return self.parse_typed_declaration()
+
         # Expression statement
         parser_log.info("Parsing expression statement")
         return self.parse_expression_statement()
@@ -730,10 +769,14 @@ class Parser:
             has_semicolon = self.match(TokenType.SEMICOLON)
             parser_log.info("Parsed pass statement")
             return PassStatement(has_semicolon=has_semicolon)
-        
+
         # Final declaration
         if self.match(TokenType.FINAL):
             return self.parse_final_declaration()
+
+        # Typed variable declaration
+        if self._looks_like_typed_declaration():
+            return self.parse_typed_declaration()
 
         # Return statement
         if self.match(TokenType.RETURN):
@@ -776,50 +819,53 @@ class Parser:
 
         return None
 
+    def parse_typed_declaration(self) -> ExpressionStatement:
+        """Parse a typed variable declaration."""
+        parser_log.info("Parsing typed variable declaration")
+        identifier_token = self.consume(TokenType.IDENTIFIER, "Expected identifier in typed declaration")
+        target = IdentifierExpression(name=identifier_token.value)
+        self.consume(TokenType.COLON, "Expected ':' in typed declaration")
+        type_annotation = self._parse_type_annotation_string()
+        if not type_annotation:
+            self.raise_parser_error("Expected type annotation after ':'")
+
+        value = None
+        if self.match(TokenType.ASSIGN):
+            value = self.parse_expression()
+            if value is None:
+                self.raise_parser_error("Expected value after '=' in typed declaration")
+
+        has_semicolon = self.match(TokenType.SEMICOLON)
+        annotated = AnnotatedAssignment(target=target, type_annotation=type_annotation, value=value)
+        return ExpressionStatement(expression=annotated, has_semicolon=has_semicolon)
+
     def parse_final_declaration(self) -> FinalDeclaration:
         """Parse final variable declaration."""
         parser_log.info("Parsing final variable declaration")
-        
+
         # Parse the identifier
         if not self.check(TokenType.IDENTIFIER):
             self.raise_parser_error("Expected identifier after 'final'")
-        
+
         identifier = self.parse_expression()
-        
+
         # Optional type annotation
         type_annotation = None
         if self.match(TokenType.COLON):
-            # Parse type annotation
-            type_parts = []
-            while not self.check(TokenType.ASSIGN, TokenType.SEMICOLON, TokenType.NEWLINE):
-                if self.check(TokenType.IDENTIFIER):
-                    type_parts.append(self.advance().value)
-                elif self.match(TokenType.LBRACKET):
-                    type_parts.append('[')
-                    # Handle generic types like List[int]
-                    while not self.check(TokenType.RBRACKET):
-                        if self.check(TokenType.IDENTIFIER):
-                            type_parts.append(self.advance().value)
-                        elif self.match(TokenType.COMMA):
-                            type_parts.append(', ')
-                    self.consume(TokenType.RBRACKET, "Expected ']'")
-                    type_parts.append(']')
-                else:
-                    break
-            type_annotation = ''.join(type_parts)
-        
+            type_annotation = self._parse_type_annotation_string()
+
         # Must have assignment for final variables
         if not self.match(TokenType.ASSIGN):
             self.raise_parser_error("Final variables must be initialized")
-        
+
         # Parse the value
         value = self.parse_expression()
         if value is None:
             self.raise_parser_error("Expected value in final declaration")
-        
+
         # Consume optional semicolon
         self.match(TokenType.SEMICOLON)
-        
+
         return FinalDeclaration(target=identifier, value=value, type_annotation=type_annotation)
 
     def parse_if_statement(self) -> IfStatement:
