@@ -1,6 +1,6 @@
 # Spice Programming Language
 
-A Python superset with static typing features including interfaces, abstract classes, and final modifiers.
+A Python superset with static typing features including interfaces, abstract classes, final modifiers, and more.
 
 ## Project Structure
 
