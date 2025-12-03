@@ -7,7 +7,7 @@ dev:
 	pip install -e ".[dev]"
 
 test:
-	cd ./spice
+	cd ./spice-lang
 	pytest tests/ -v
 
 test-coverage:

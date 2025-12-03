@@ -1,0 +1,7 @@
+[submodule "spice-vscode"]
+	path = spice-vscode
+	url = https://github.com/ReclipseTheOne/Spice-VSCode.git
+
+[submodule "spice-lsp"]
+	path = spice-lsp
+	url = https://github.com/ReclipseTheOne/Spice-LSP.git

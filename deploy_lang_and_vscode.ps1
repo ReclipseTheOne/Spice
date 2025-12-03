@@ -3,16 +3,15 @@
 #
 # Running conditions:
 # - Python path should be already declared in terminal env
-# - Spice and Spice-VSCode should be cloned in the same root directory under different folders
 # =============================================================================================
 
 $SpiceDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$VscodeDir = Join-Path (Split-Path $SpiceDir) "Spice - VSCode"
+$VscodeDir = Join-Path $SpiceDir "spice-vscode"
 
 Write-Host "Installing Spice (python setup.py install)..." -ForegroundColor Yellow
 Set-Location $SpiceDir
 
-python spice/setup.py install
+python spice-lang/setup.py install
 
 Write-Host "Spice installed" -ForegroundColor Green
 
