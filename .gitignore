@@ -42,8 +42,8 @@ htmlcov/
 
 # Project specific
 *.py
-!spice/**/*.py
-!tests/**/*.py
+!spice-lang/spice/**/*.py
+!spice-lang/tests/**/*.py
 !setup.py
 examples/*.py
 
