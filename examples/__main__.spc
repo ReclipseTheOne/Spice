@@ -1,6 +1,6 @@
 # Valid directory entry point for Spice
 
-import enterprise_data
+import test_import
 
 class A {
     def func(a: int, b: str) -> None {

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "spicy"
-version = "0.1.0"
+version = "0.1.1"
 description = "Python but with all the spice"
 authors = [
     { name = "Reclipse" }
@@ -32,14 +32,17 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=7.0",
-    "pytest-cov>=4.0",
-    "black>=23.0",
+    "pytest>=9.0",
+    "pytest-cov>=7.0",
+    "black>=25.1",
     "mypy>=1.0",
+    "build>=1.0",
+    "installer>=0.7",
 ]
 
 [project.scripts]
-spice = "spice.cli.cli_handler:from_cli"
+spicy = "spice.cli.cli_handler:from_cli"
 
 [tool.setuptools.packages.find]
-where = ["spice"]
+where = ["."]
+include = ["spice*"]

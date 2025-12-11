@@ -8,10 +8,13 @@ class SpiceFile:
     def __init__(self, path: Path) -> None:
         self.is_directory: bool = path.is_dir()
 
-        if not self.is_directory and 
+        if self.is_directory:
+            main_file = path / '__main__.spc'
+            if not main_file.is_file():
+                raise FileNotFoundError(f"Directory '{path}' does not contain '__main__.spc'")
+            path = main_file
+        elif not path.is_file():
             raise FileNotFoundError(f"Expected a .spc file or a directory containing '__main__.spc', got: {path}")
-        else:
-            path = path / '__main__.spc'
 
         self.path: Path = path
         self.py_path: Path = self.path.with_suffix('.py')

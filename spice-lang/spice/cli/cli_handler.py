@@ -15,7 +15,7 @@ import click
 @click.option('-v', '--verbose', is_flag=True, help='Verbose output')
 @click.option('-nf', '--no-final-check', is_flag=True, help='Skip final type checks at compilation')
 @click.option('--runtime-checks', is_flag=True, help='Add runtime type checking to output')
-@click.version_option(version='0.1.0', prog_name='spicy')
+@click.version_option(package_name='spicy', prog_name='spicy')
 def from_cli(source: str, output: Optional[str], check: bool, watch: bool, verbose: bool, no_final_check: bool, runtime_checks: bool):
     """Compile Spice (.spc) files to Python."""
     flags: CLI_FLAGS = CLI_FLAGS(
