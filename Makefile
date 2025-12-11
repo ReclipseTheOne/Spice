@@ -1,4 +1,4 @@
-.PHONY: install dev test format lint clean build rebuild setup-tools
+.PHONY: install dev test format lint clean build rebuild setup-tools vscode-ext vscode-dev deploy
 
 # Build wheel using pypa/build
 build:
@@ -46,3 +46,16 @@ clean:
 run-example:
 	spice examples/shapes.spc -v
 	python examples/shapes.py
+
+# Build and install VSCode extension
+vscode-ext:
+	cd spice-vscode && npm install && npm run compile
+	cd spice-vscode && npx vsce package --allow-missing-repository
+	code --install-extension $$(ls -t spice-vscode/*.vsix | head -1) --force
+
+# Launch VSCode in extension development mode
+vscode-dev:
+	code . --extensionDevelopmentPath="$(CURDIR)/spice-vscode" --disable-extensions
+
+# Full deploy: rebuild spice + vscode extension + launch
+deploy: rebuild vscode-ext vscode-dev
