@@ -267,7 +267,7 @@ class Parser:
 
     # Any methods handling class declarations, interfaces, methods, etc.
 
-    def parse_interface(self) -> InterfaceDeclaration:
+    def parse_interface(self, line: int = 0, column: int = 0) -> InterfaceDeclaration:
         """Parse interface declaration."""
         name = self.consume(TokenType.IDENTIFIER, "Expected interface name").value
         parser_log.info(f"Parsing interface '{name}'")
@@ -291,7 +291,7 @@ class Parser:
         methods = self.parse_interface_body()
         parser_log.info(f"Completed interface '{name}' with {len(methods)} methods")
 
-        return InterfaceDeclaration(name, methods, bases if bases else [])
+        return InterfaceDeclaration(name, methods, bases if bases else [], line=line, column=column)
 
 
     def parse_interface_body(self) -> List[MethodSignature]:
@@ -303,8 +303,10 @@ class Parser:
                 self.advance()
                 continue
 
-            if self.match(TokenType.DEF):
-                method = self.parse_method_signature()
+            if self.check(TokenType.DEF):
+                start_token = self.peek()
+                self.advance()  # consume DEF
+                method = self.parse_method_signature(line=start_token.line, column=start_token.column)
                 methods.append(method)
                 parser_log.info(f"Added method signature: {method.name}")
             else:
@@ -317,6 +319,11 @@ class Parser:
     def parse_class(self, compiler_flags: Optional[List[str]] = None):
         """Parse class declaration."""
         from spice.parser.ast_nodes import ClassDeclaration
+
+        # Capture position at start of class declaration
+        start_token = self.peek()
+        start_line = start_token.line
+        start_column = start_token.column
 
         # Handle modifiers
         is_abstract = False
@@ -387,7 +394,9 @@ class Parser:
             bases=bases,
             interfaces=interfaces,
             is_abstract=is_abstract,
-            is_final=is_final
+            is_final=is_final,
+            line=start_line,
+            column=start_column
         )
 
         declaration.compiler_flags = list(compiler_flags or [])
@@ -427,6 +436,11 @@ class Parser:
 
     def parse_class_member(self, is_interface: bool = False, compiler_flags: Optional[List[str]] = None):
         """Parse a class member (method or field)."""
+        # Capture position at start of member
+        start_token = self.peek()
+        start_line = start_token.line
+        start_column = start_token.column
+
         # Check for static modifier
         is_static = False
         is_abstract = False
@@ -488,7 +502,9 @@ class Parser:
                 return_type=return_type,
                 is_static=is_static,
                 is_abstract=is_abstract,
-                is_final=is_final
+                is_final=is_final,
+                line=start_line,
+                column=start_column
             )
             func_decl.compiler_flags = list(compiler_flags or [])
             return func_decl
@@ -507,7 +523,7 @@ class Parser:
 
     # Any methods handling function declarations, arguments, parameters etc.
 
-    def parse_method_signature(self) -> MethodSignature:
+    def parse_method_signature(self, line: int = 0, column: int = 0) -> MethodSignature:
         """Parse a method signature."""
         name = self.consume(TokenType.IDENTIFIER, "Expected method name").value
 
@@ -534,7 +550,7 @@ class Parser:
         # Consume semicolon if present
         self.match(TokenType.SEMICOLON)
 
-        return MethodSignature(name, params, return_type)
+        return MethodSignature(name, params, return_type, line=line, column=column)
 
 
     def parse_parameters(self) -> List[Parameter]:
@@ -606,7 +622,7 @@ class Parser:
         return body
 
 
-    def parse_function(self, compiler_flags: Optional[List[str]] = None):
+    def parse_function(self, compiler_flags: Optional[List[str]] = None, line: int = 0, column: int = 0):
         """Parse function declaration."""
         from spice.parser.ast_nodes import FunctionDeclaration
 
@@ -653,7 +669,9 @@ class Parser:
             return_type=return_type,
             is_static=False,
             is_abstract=False,
-            is_final=False
+            is_final=False,
+            line=line,
+            column=column
         )
         func_decl.compiler_flags = list(compiler_flags or [])
         return func_decl
@@ -677,11 +695,13 @@ class Parser:
         )
 
         # Interface declaration
-        if self.match(TokenType.INTERFACE):
+        if self.check(TokenType.INTERFACE):
+            start_token = self.peek()
+            self.advance()  # consume INTERFACE
             if compiler_flags:
                 self.raise_parser_error("Compiler flags are only supported for classes and functions")
             parser_log.info("Parsing interface declaration")
-            return self.parse_interface()
+            return self.parse_interface(start_token.line, start_token.column)
 
         # Class declaration with modifiers (final can also start a variable declaration)
         is_final_class = False
@@ -694,9 +714,11 @@ class Parser:
             return self.parse_class(compiler_flags=compiler_flags)
 
         # Function declaration
-        if self.match(TokenType.DEF):
+        if self.check(TokenType.DEF):
+            start_token = self.peek()
+            self.advance()  # consume DEF
             parser_log.info("Parsing function declaration")
-            return self.parse_function(compiler_flags=compiler_flags)
+            return self.parse_function(compiler_flags=compiler_flags, line=start_token.line, column=start_token.column)
 
         if compiler_flags:
             self.raise_parser_error("Compiler flags must precede a class or function declaration")

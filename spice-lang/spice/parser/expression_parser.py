@@ -50,11 +50,12 @@ class ExpressionParser:
 
         # =
         if self.parser.check(TokenType.ASSIGN):
-            op = self.parser.advance().value
+            op_token = self.parser.advance()
             right = self.parse_assignment(context=context)
             if right is None:
                 self.parser.raise_parser_error("Expected expression after assignment operator")
-            return AssignmentExpression(target=expr, value=right, operator=op)
+            return AssignmentExpression(target=expr, value=right, operator=op_token.value,
+                                        line=op_token.line, column=op_token.column)
 
         # +=, -=, *=, /=, %=, **=, //=
         compound_ops = {
@@ -68,11 +69,13 @@ class ExpressionParser:
         }
 
         for token_type, op in compound_ops.items():
-            if self.parser.match(token_type):
+            if self.parser.check(token_type):
+                op_token = self.parser.advance()
                 right = self.parse_assignment(context=context)
                 if right is None:
                     self.parser.raise_parser_error(f"Expected expression after {op}")
-                return AssignmentExpression(target=expr, value=right, operator=op)
+                return AssignmentExpression(target=expr, value=right, operator=op,
+                                            line=op_token.line, column=op_token.column)
 
         return expr
 

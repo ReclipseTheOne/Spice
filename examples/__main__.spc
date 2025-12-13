@@ -1,8 +1,11 @@
 # Valid directory entry point for Spice
+interface A {
+    def func(a: int, b: str) -> None;
+    def func(a: int, b: int) -> None;
+}
 
-import test_import
 
-class A {
+class B implements A {
     def func(a: int, b: str) -> None {
         return;
     }
@@ -12,5 +15,10 @@ class A {
     }
 }
 
-final a: int = 2;
-b = 3;
+class C extends B {
+    def func(a: int, b: str) -> None {
+        return;
+    }
+}
+
+final final_var: int = 2;

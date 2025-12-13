@@ -36,7 +36,7 @@ class B extends A {
         result = checker.check(spice_file)
 
         assert not result
-        assert any("Class 'B' cannot override final method 'func'" in error for error in checker.errors)
+        assert any("Class 'B' cannot override final method 'func'" in str(error) for error in checker.errors)
 
     def test_detects_inherited_final_method_override(self):
         source = """
@@ -63,7 +63,7 @@ class C extends B {
         result = checker.check(spice_file)
 
         assert not result
-        assert any("Class 'C' cannot override final method 'func' defined in 'A'" in error for error in checker.errors)
+        assert any("Class 'C' cannot override final method 'func' defined in 'A'" in str(error) for error in checker.errors)
 
     def test_allows_subclass_without_override(self):
         source = """
@@ -96,4 +96,4 @@ a = 2;
         result = checker.check(spice_file)
 
         assert not result
-        assert any("Cannot reassign final variable 'a'" in error for error in checker.errors)
+        assert any("Cannot reassign final variable 'a'" in str(error) for error in checker.errors)

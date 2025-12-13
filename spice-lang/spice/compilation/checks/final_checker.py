@@ -1,5 +1,5 @@
 from dataclasses import fields, is_dataclass
-from typing import Dict, List, Optional, Set, TYPE_CHECKING
+from typing import Dict, List, Optional, Set, TYPE_CHECKING, Union
 
 from spice.parser.ast_nodes import (
     ASTNode,
@@ -11,6 +11,7 @@ from spice.parser.ast_nodes import (
     IdentifierExpression,
 )
 from spice.compilation.checks.compile_time_check import CompileTimeCheck
+from spice.compilation.checks.interface_checker import CheckError
 
 if TYPE_CHECKING:
     from spice.compilation.spicefile import SpiceFile
@@ -24,7 +25,7 @@ class FinalChecker(CompileTimeCheck):
     def _reset_state(self):
         self.final_variables: Dict[str, Set[str]] = {'global': set()}
         self.current_scope = 'global'
-        self.errors: List[str] = []
+        self.errors: List[Union[str, CheckError]] = []
         self.class_nodes: Dict[str, ClassDeclaration] = {}
         self.final_methods_by_class: Dict[str, Dict[str, FunctionDeclaration]] = {}
 
@@ -52,14 +53,17 @@ class FinalChecker(CompileTimeCheck):
             self.final_variables[self.current_scope] = set()
         self.final_variables[self.current_scope].add(var_name)
 
-    def check_assignment(self, var_name: str, line_number: Optional[int] = None):
+    def check_assignment(self, var_name: str, line: int = 0, column: int = 0):
         """Check if assignment to variable is allowed."""
         scope_vars = self.final_variables.get(self.current_scope, set())
         global_vars = self.final_variables.get('global', set())
 
         if var_name in scope_vars or var_name in global_vars:
-            prefix = f"Line {line_number}: " if line_number is not None else ""
-            self.errors.append(f"{prefix}Cannot reassign final variable '{var_name}'")
+            self.errors.append(CheckError(
+                message=f"Cannot reassign final variable '{var_name}'",
+                line=line,
+                column=column
+            ))
             return False
         return True
 
@@ -115,8 +119,7 @@ class FinalChecker(CompileTimeCheck):
 
     def _handle_assignment(self, node: AssignmentExpression):
         if isinstance(node.target, IdentifierExpression):
-            line_number = getattr(node, "line_number", None)
-            self.check_assignment(node.target.name, line_number)
+            self.check_assignment(node.target.name, node.line, node.column)
         self._visit_expression(node.value)
 
     def _collect_class_metadata(self, nodes: List[ASTNode]):
@@ -146,9 +149,11 @@ class FinalChecker(CompileTimeCheck):
         for member in class_node.body:
             if isinstance(member, FunctionDeclaration) and member.name in inherited_final_methods:
                 base_name = inherited_final_methods[member.name]
-                self.errors.append(
-                    f"Class '{class_node.name}' cannot override final method '{member.name}' defined in '{base_name}'"
-                )
+                self.errors.append(CheckError(
+                    message=f"Class '{class_node.name}' cannot override final method '{member.name}' defined in '{base_name}'",
+                    line=member.line,
+                    column=member.column
+                ))
 
     def _collect_inherited_final_methods(self, class_node: ClassDeclaration) -> Dict[str, str]:
         """Gather final methods from all parent classes."""

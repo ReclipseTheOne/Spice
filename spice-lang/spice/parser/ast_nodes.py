@@ -39,6 +39,8 @@ class InterfaceDeclaration(ASTNode):
     name: str
     methods: List['MethodSignature']
     base_interfaces: List[str] = field(default_factory=list)
+    line: int = 0
+    column: int = 0
 
     def accept(self, visitor):
         return visitor.visit_InterfaceDeclaration(self)
@@ -56,6 +58,8 @@ class MethodSignature(ASTNode):
     name: str
     params: List['Parameter']
     return_type: Optional[str] = None
+    line: int = 0
+    column: int = 0
 
     def accept(self, visitor):
         return visitor.visit_MethodSignature(self)
@@ -91,6 +95,8 @@ class ClassDeclaration(ASTNode):
     is_abstract: bool = False
     is_final: bool = False
     compiler_flags: List[str] = field(default_factory=list)
+    line: int = 0
+    column: int = 0
 
     def accept(self, visitor):
         return visitor.visit_ClassDeclaration(self)
@@ -113,6 +119,8 @@ class FunctionDeclaration(ASTNode):
     is_final: bool = False
     decorators: List[str] = field(default_factory=list)
     compiler_flags: List[str] = field(default_factory=list)
+    line: int = 0
+    column: int = 0
 
     def accept(self, visitor):
         return visitor.visit_FunctionDeclaration(self)
@@ -259,6 +267,8 @@ class AssignmentExpression(Expression):
     target: Expression
     value: Expression
     operator: str = '='  # '=', '+=', '-=', '*=', '/=', etc.
+    line: int = 0
+    column: int = 0
 
     def accept(self, visitor):
         return visitor.visit_AssignmentExpression(self)

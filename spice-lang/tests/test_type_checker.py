@@ -46,7 +46,7 @@ a.func(b, c);
 """
         result, errors = self.run_type_check(source)
         safe_assert(not result, "Type checker should fail for mismatched arguments", errors)
-        safe_assert(any("func" in error for error in errors), "Error should mention method name", errors)
+        safe_assert(any("func" in str(error) for error in errors), "Error should mention method name", errors)
 
     def test_accepts_matching_arguments(self):
         """Valid argument types should pass the checker."""
@@ -76,7 +76,7 @@ alias = value;
             errors,
         )
         safe_assert(
-            any("alias" in error for error in errors),
+            any("alias" in str(error) for error in errors),
             "Error should mention the variable needing annotation",
             errors,
         )

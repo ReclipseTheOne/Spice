@@ -15,6 +15,7 @@ abstract class Shape implements Drawable {
 
     # Abstract method - must be implemented by subclasses
     abstract def get_area() -> float;
+    abstract def draw() -> None;
 
     # Final method - cannot be overridden
     final def get_color() -> str {

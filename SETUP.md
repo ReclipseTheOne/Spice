@@ -31,8 +31,8 @@ cd ..
 ```
 
 This installs:
+
 - `spicy` - Spice compiler CLI
-- `spice` - Spice interpreter CLI
 
 Verify installation:
 ```bash
@@ -43,12 +43,12 @@ spicy --version
 
 ```bash
 cd spice-lsp
-pip install -r requirements.txt
 pip install -e .
 cd ..
 ```
 
 This installs:
+
 - `spice-lsp` - Language server executable
 - `pygls` - Language Server Protocol library
 
@@ -69,11 +69,13 @@ npm run compile
 ### 5. Launch VSCode Extension (Development)
 
 Option A: **From VSCode**
+
 1. Open `spice-vscode/` in VSCode
 2. Press `F5` to launch Extension Development Host
 3. Open a `.spc` file in the new window
 
 Option B: **Package and Install**
+
 ```bash
 cd spice-vscode
 npm install -g @vscode/vsce
@@ -88,9 +90,11 @@ code --install-extension spice-language-0.1.0.vsix
 If `spice-lsp` is not in your PATH, configure it in VSCode:
 
 **File → Preferences → Settings** → Search "Spice"
+
 - **Spice: Lsp Server Path**: `/path/to/spice-lsp`
 
 Or edit `.vscode/settings.json`:
+
 ```json
 {
   "spice.lspServerPath": "/absolute/path/to/spice-lsp"
@@ -100,6 +104,7 @@ Or edit `.vscode/settings.json`:
 ### Compiler Path
 
 Similarly for the Spice compiler:
+
 ```json
 {
   "spice.compilerPath": "spicy"
@@ -113,12 +118,15 @@ Similarly for the Spice compiler:
 **Error**: `Failed to start Spice Language Server`
 
 **Solutions**:
+
 1. Verify `spice-lsp` is installed:
+
    ```bash
    pip show spice-lsp
    ```
 
 2. Check if executable exists:
+
    ```bash
    which spice-lsp
    ```
@@ -126,6 +134,7 @@ Similarly for the Spice compiler:
 3. Set absolute path in VSCode settings
 
 4. Check LSP server logs:
+
    - **View → Output** → Select "Spice Language Server"
 
 ### Import Errors in LSP
@@ -133,6 +142,7 @@ Similarly for the Spice compiler:
 **Error**: `ModuleNotFoundError: No module named 'spice'`
 
 **Solution**: The LSP server needs access to the `spice` package. Ensure:
+
 ```bash
 cd spice-lang
 pip install -e .
@@ -143,12 +153,14 @@ The `-e` flag creates an editable install so changes are reflected immediately.
 ### VSCode Extension Not Loading
 
 1. Check compilation succeeded:
+
    ```bash
    cd spice-vscode
    npm run compile
    ```
 
 2. Look for `out/` directory:
+
    ```bash
    ls out/
    # Should contain extension.js
@@ -160,17 +172,20 @@ The `-e` flag creates an editable install so changes are reflected immediately.
 ### Syntax Highlighting Not Working
 
 The syntax highlighting is defined in:
+
 - `spice-vscode/syntaxes/spice.tmLanguage.json`
 
 If it's not working:
+
 1. Reload VSCode: `Ctrl+Shift+P` → "Reload Window"
 2. Check file association: File should be detected as "Spice"
 
 ## Development Workflow
 
-### Making Changes to Core Language
+### Making Changes to Spice
 
 ```bash
+# Install via 'make dev-spice'
 cd spice-lang
 # Make changes to lexer/parser/etc.
 pytest  # Run tests
@@ -182,7 +197,7 @@ Changes are immediately available (editable install).
 ### Making Changes to LSP Server
 
 ```bash
-cd spice-lsp
+# Install via 'make dev-lsp'
 # Edit spice_lsp/server.py
 # Restart VSCode window to reload LSP
 ```
@@ -192,42 +207,29 @@ cd spice-lsp
 ```bash
 cd spice-vscode
 # Edit src/extension.ts
-npm run compile
-# Press F5 in VSCode to launch new instance
+make vscode-ext
+# CTRL + Shist + P > Developer: Reload Window
 ```
 
 ## Testing
 
 ### Test Core Language
+
 ```bash
 cd spice-lang
 pytest -v
 ```
 
-### Test LSP Server Manually
-```bash
-spice-lsp
-# Type a JSON-RPC message and press Enter
-{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"capabilities":{}}}
-```
-
 ### Test End-to-End
-1. Create `test.spc`:
-   ```spice
-   interface Greeter {
-       def greet(name: str) -> None;
-   }
-   ```
-2. Open in VSCode with extension running
-3. Should see:
-   - Syntax highlighting
-   - No red squiggles (valid syntax)
-   - Completion for `interface` keyword
-   - Hover info on `interface`
+
+1. Go into `./examples`
+2. Open any `.spc` file into VSCode with the extension installed and no errors should be present
+3. Open `View > Output` and select `Spice Language Server`
+4. Look out for any irregular behaviour
 
 ## Project Structure Reference
 
-```
+```txt
 Spice/
 ├── spice-lang/              # Core language
 │   ├── spice/
@@ -244,8 +246,8 @@ Spice/
 │   ├── spice_lsp/
 │   │   ├── __init__.py
 │   │   └── server.py        # LSP implementation
-│   ├── requirements.txt     # pygls
-│   └── setup.py
+│   └── pyproject.toml       # Build config
+│
 │
 └── spice-vscode/            # VSCode extension (submodule)
     ├── src/
@@ -259,6 +261,7 @@ Spice/
 ## Next Steps
 
 1. Try the examples:
+
    ```bash
    cd examples
    spice shapes.spc

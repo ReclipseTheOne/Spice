@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Union
 
 from spice.compilation.checks.compile_time_check import CompileTimeCheck
+from spice.compilation.checks.interface_checker import CheckError
 from spice.compilation.spicefile import SpiceFile
 from spice.compilation.symbol_table import (
     SymbolTable,
@@ -30,9 +31,10 @@ class TypeChecker(CompileTimeCheck):
     """Symbol Table parser for illegal type calls"""
 
     def __init__(self) -> None:
-        self.errors: List[str] = []
+        self.errors: List[Union[str, CheckError]] = []
         self.table: Optional[SymbolTable] = None
         self.scope_stack: List[str] = []
+        self._current_node = None  # Track current node for line/column info
 
     def check(self, file: SpiceFile) -> bool:
         if not getattr(file, "symbol_table", None):
@@ -86,6 +88,7 @@ class TypeChecker(CompileTimeCheck):
         self._pop_scope()
 
     def _visit_expression_statement(self, node: ExpressionStatement):
+        self._current_node = node
         expr = node.expression
         if isinstance(expr, CallExpression):
             self._check_call_expression(expr)
@@ -94,6 +97,7 @@ class TypeChecker(CompileTimeCheck):
         elif isinstance(expr, AssignmentExpression):
             # Inspect nested expressions if needed
             self._visit_assignment(expr)
+        self._current_node = None
 
     def _visit_assignment(self, node: AssignmentExpression):
         if isinstance(node.value, CallExpression):
@@ -119,11 +123,15 @@ class TypeChecker(CompileTimeCheck):
         if matching:
             return
 
-        arg_desc = ", ".join(arg_types) if arg_types else ""
+        arg_desc = ", ".join(str(t) for t in arg_types) if arg_types else ""
         owner_desc = f"{owner}." if owner else ""
-        self.errors.append(
-            f"No overload of {owner_desc}{functions[0].name} matches argument types ({arg_desc})"
-        )
+        line = getattr(self._current_node, "line", 0) if self._current_node else 0
+        column = getattr(self._current_node, "column", 0) if self._current_node else 0
+        self.errors.append(CheckError(
+            message=f"No overload of {owner_desc}{functions[0].name} matches argument types ({arg_desc})",
+            line=line,
+            column=column
+        ))
 
     def _arguments_match(self, arg_types: List[Optional[str]], params) -> bool:
         if len(arg_types) != len(params):
@@ -166,9 +174,13 @@ class TypeChecker(CompileTimeCheck):
         if isinstance(node.value, CallExpression) and self._is_constructor_call(node.value):
             return
 
-        self.errors.append(
-            f"Variable '{node.target.name}' must declare a type annotation when assigned from non-literal expression"
-        )
+        line = getattr(self._current_node, "line", 0) if self._current_node else 0
+        column = getattr(self._current_node, "column", 0) if self._current_node else 0
+        self.errors.append(CheckError(
+            message=f"Variable '{node.target.name}' must declare a type annotation when assigned from non-literal expression",
+            line=line,
+            column=column
+        ))
 
     def _is_constructor_call(self, call: CallExpression) -> bool:
         callee = call.callee

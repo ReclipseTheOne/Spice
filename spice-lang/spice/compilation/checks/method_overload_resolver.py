@@ -1,9 +1,10 @@
 """Compile-time resolver for method overloads."""
 
 from collections import defaultdict
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from spice.compilation.checks.compile_time_check import CompileTimeCheck
+from spice.compilation.checks.interface_checker import CheckError
 from spice.compilation.spicefile import SpiceFile
 from spice.parser.ast_nodes import ClassDeclaration, FunctionDeclaration, Parameter, Module
 
@@ -12,7 +13,7 @@ class MethodOverloadResolver(CompileTimeCheck):
     """Resolve method overloads w/ @dispatch"""
 
     def __init__(self):
-        self.errors: List[str] = []
+        self.errors: List[Union[str, CheckError]] = []
 
     def check(self, file: SpiceFile) -> bool:
         """Populate overload metadata and decorate overloaded methods"""
@@ -71,9 +72,11 @@ class MethodOverloadResolver(CompileTimeCheck):
                 signature_key, type_names = self._signature_key(method_name, method.params)
                 if signature_key in seen_signatures:
                     prefix = f"{owner_name}." if owner_name and owner_name != '__module__' else ""
-                    self.errors.append(
-                        f"Duplicate overload for {prefix}{method_name} with signature {signature_key}"
-                    )
+                    self.errors.append(CheckError(
+                        message=f"Duplicate overload for {prefix}{method_name} with signature {signature_key}",
+                        line=method.line,
+                        column=method.column
+                    ))
                     continue
 
                 seen_signatures.add(signature_key)

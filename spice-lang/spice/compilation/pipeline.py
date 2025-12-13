@@ -190,6 +190,7 @@ class SpicePipeline:
 
         from spice.compilation.checks import (
             FinalChecker,
+            InterfaceChecker,
             MethodOverloadResolver,
             SymbolTableBuilder,
             TypeChecker,
@@ -215,6 +216,15 @@ class SpicePipeline:
             raise SpiceCompileTimeError(exception)
         else:
             pipeline_log.custom("pipeline", "No type errors present.")
+
+        interface_checker = InterfaceChecker()
+        if not interface_checker.check(file):
+            exception = "Interface implementation errors:\n"
+            for error in interface_checker.errors:
+                exception += f" - {error}\n"
+            raise SpiceCompileTimeError(exception)
+        else:
+            pipeline_log.custom("pipeline", "All interfaces implemented correctly.")
 
         final_checker = FinalChecker()
         if (not final_checker.check(file) and not flags.no_final_check):
