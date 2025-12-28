@@ -1,0 +1,176 @@
+name: Build, test n' release
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ./spice-lang
+
+      - name: Run tests
+        working-directory: ./spice-lang
+        run: pytest tests/ -v --tb=short
+
+  # Build and release if commit contains semver
+  release:
+    runs-on: ubuntu-latest
+    needs: test
+
+    permissions:
+      contents: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Check for version in commit message
+        id: check_version
+        run: |
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          echo "Commit message: $COMMIT_MSG"
+
+          if [[ $COMMIT_MSG =~ v?([0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.-]+)?(\+[a-zA-Z0-9.-]+)?) ]]; then
+            VERSION="${BASH_REMATCH[1]}"
+            TAG="v$VERSION"
+
+            echo "Found version: $VERSION"
+            echo "SHOULD_RELEASE=true" >> $GITHUB_OUTPUT
+            echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
+            echo "TAG=$TAG" >> $GITHUB_OUTPUT
+
+            if [[ "$VERSION" == *"-alpha"* ]]; then
+              echo "PRERELEASE=true" >> $GITHUB_OUTPUT
+            elif [[ "$VERSION" == *"-beta"* ]]; then
+              echo "PRERELEASE=true" >> $GITHUB_OUTPUT
+            else
+              echo "PRERELEASE=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "No version found in commit message"
+            echo "SHOULD_RELEASE=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get package info
+        if: steps.check_version.outputs.SHOULD_RELEASE == 'true'
+        id: pkg_info
+        run: |
+          SPICE_VERSION=$(grep -Po '(?<=^version = ")[^"]+' spice-lang/pyproject.toml)
+          LSP_VERSION=$(grep -Po '(?<=^version = ")[^"]+' spice-lsp/pyproject.toml)
+          echo "spice_version=$SPICE_VERSION" >> $GITHUB_OUTPUT
+          echo "lsp_version=$LSP_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Set up Python
+        if: steps.check_version.outputs.SHOULD_RELEASE == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install build dependencies
+        if: steps.check_version.outputs.SHOULD_RELEASE == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install build
+
+      - name: Build packages
+        if: steps.check_version.outputs.SHOULD_RELEASE == 'true'
+        run: |
+          cd spice-lang && python -m build && cd ..
+          cd spice-lsp && python -m build && cd ..
+
+      - name: Get previous tag
+        if: steps.check_version.outputs.SHOULD_RELEASE == 'true'
+        id: prev_tag
+        run: |
+          tag=$(git tag --sort=-creatordate | head -1 || true)
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Get commit log
+        if: steps.check_version.outputs.SHOULD_RELEASE == 'true'
+        id: commit_log
+        run: |
+          if [ -z "${{ steps.prev_tag.outputs.tag }}" ]; then
+            echo "log=- Initial release" >> "$GITHUB_OUTPUT"
+          else
+            TEMP_LOG=$(mktemp)
+            git log ${{ steps.prev_tag.outputs.tag }}..HEAD --pretty=format:"- %s (%an)" > "$TEMP_LOG"
+            DELIMITER="COMMIT_LOG_DELIMITER_$(date +%s)"
+            echo "log<<$DELIMITER" >> "$GITHUB_OUTPUT"
+            cat "$TEMP_LOG" >> "$GITHUB_OUTPUT"
+            echo "" >> "$GITHUB_OUTPUT"
+            echo "$DELIMITER" >> "$GITHUB_OUTPUT"
+            rm "$TEMP_LOG"
+          fi
+
+      - name: Create tag
+        if: steps.check_version.outputs.SHOULD_RELEASE == 'true'
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git tag -a ${{ steps.check_version.outputs.TAG }} -m "Release ${{ steps.check_version.outputs.TAG }}"
+          git push origin ${{ steps.check_version.outputs.TAG }}
+
+      - name: Create GitHub Release
+        if: steps.check_version.outputs.SHOULD_RELEASE == 'true'
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.check_version.outputs.TAG }}
+          name: "Spice ${{ steps.check_version.outputs.TAG }}"
+          body: |
+            ## Spice ${{ steps.check_version.outputs.TAG }}
+
+            ### Changes
+            ${{ steps.commit_log.outputs.log }}
+
+            ### Package Versions
+            - **spicy:** ${{ steps.pkg_info.outputs.spice_version }}
+            - **spice-lsp:** ${{ steps.pkg_info.outputs.lsp_version }}
+
+            ### Installation
+            ```bash
+            pip install spicy
+            pip install spice-lsp  # Optional: for IDE support
+            ```
+          draft: false
+          prerelease: ${{ steps.check_version.outputs.PRERELEASE }}
+          files: |
+            spice-lang/dist/*
+            spice-lsp/dist/*
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish spice-lang to PyPI
+        if: steps.check_version.outputs.SHOULD_RELEASE == 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: spice-lang/dist/
+
+      - name: Publish spice-lsp to PyPI
+        if: steps.check_version.outputs.SHOULD_RELEASE == 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: spice-lsp/dist/
