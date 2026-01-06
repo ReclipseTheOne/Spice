@@ -208,3 +208,30 @@ x = 5  # inline comment"""
             print(f"Correctly caught SyntaxError: {e}", flush=True)
             # Test passes if we get here
             assert True
+
+    def test_scientific_notation(self):
+        """Test scientific notation number tokenization."""
+        source = "1e10 2.5e-3 3E+5 4.0E2 5e0"
+
+        log_test_start("test_scientific_notation", source)
+        lexer = Lexer()
+        tokens = lexer.tokenize(source)
+
+        token_info = "\n".join([f"   {i}: {token.type.name} = '{token.value}'" for i, token in enumerate(tokens)])
+        print(f"Tokenized {len(tokens)} tokens:")
+        print(token_info, flush=True)
+
+        # All should be nr tokens
+        number_tokens = [t for t in tokens if t.type == TokenType.NUMBER]
+        safe_assert(
+            len(number_tokens) == 5,
+            f"Expected 5 NUMBER tokens, found {len(number_tokens)}",
+            f"Number tokens: {[t.value for t in number_tokens]}"
+        )
+
+        expected_values = ["1e10", "2.5e-3", "3E+5", "4.0E2", "5e0"]
+        for i, expected in enumerate(expected_values):
+            safe_assert(
+                number_tokens[i].value == expected,
+                f"Token {i}: expected '{expected}', got '{number_tokens[i].value}'"
+            )

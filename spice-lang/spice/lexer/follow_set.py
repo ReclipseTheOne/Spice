@@ -49,6 +49,8 @@ FOLLOW_SET = {
     # alpha not in list
     # alpha if condition
     # alpha for item
+    # from alpha import beta
+    # { RED, GREEN, BLUE }
     TokenType.IDENTIFIER: {
         TokenType.SEMICOLON, TokenType.STAR, TokenType.SLASH, TokenType.PERCENT,
         TokenType.DOUBLESTAR, TokenType.DOUBLESLASH, TokenType.PLUS, TokenType.MINUS,
@@ -59,7 +61,7 @@ FOLLOW_SET = {
         TokenType.AND, TokenType.OR, TokenType.IN, TokenType.RPAREN, TokenType.LPAREN,
         TokenType.COLON, TokenType.DOT, TokenType.COMMA, TokenType.LBRACE, TokenType.RBRACKET,
         TokenType.EXTENDS, TokenType.IMPLEMENTS, TokenType.LBRACKET,
-        TokenType.IS, TokenType.NOT, TokenType.IF, TokenType.FOR, TokenType.IMPORT
+        TokenType.IS, TokenType.NOT, TokenType.IF, TokenType.FOR, TokenType.IMPORT, TokenType.RBRACE
     },
 
     # alpha = "alpha";
@@ -125,12 +127,12 @@ FOLLOW_SET = {
     },
 
 
-    #
+    # self explainatory
     TokenType.NEWLINE: {
         TokenType.ABSTRACT, TokenType.CLASS, TokenType.DEF, TokenType.FINAL, TokenType.INTERFACE,
         TokenType.IDENTIFIER, TokenType.PASS, TokenType.RETURN, TokenType.IF, TokenType.FOR, TokenType.WHILE,
         TokenType.SWITCH, TokenType.RBRACE, TokenType.COMMENT, TokenType.EOF, TokenType.NEWLINE, TokenType.STATIC,
-        TokenType.RAISE, TokenType.IMPORT, TokenType.STRING, TokenType.RPAREN, TokenType.FROM
+        TokenType.RAISE, TokenType.IMPORT, TokenType.STRING, TokenType.RPAREN, TokenType.FROM, TokenType.ENUM, TokenType.DATA
     },
 
     # -> None:
@@ -186,9 +188,11 @@ FOLLOW_SET = {
     # "string1", "string2", "string3"
     # True, False
     # [list], (tuple)
+    # 1, -1
     TokenType.COMMA: {
-        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.TRUE, TokenType.FALSE,
-        TokenType.LBRACKET, TokenType.LPAREN
+        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.FSTRING, TokenType.RSTRING, TokenType.FRSTRING,
+        TokenType.REGEX, TokenType.TRUE, TokenType.FALSE, TokenType.LBRACKET, TokenType.LPAREN, TokenType.MINUS, TokenType.PLUS,
+        TokenType.NONE
     },
 
     # alpha.beta
@@ -218,8 +222,10 @@ FOLLOW_SET = {
     # alpha / beta;
     # alpha / 1;
     # alpha / "string";
+    # 2 / (2 + 2)
     TokenType.SLASH: {
-        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING
+        TokenType.IDENTIFIER, TokenType.NUMBER, TokenType.STRING, TokenType.FSTRING, TokenType.RSTRING,
+        TokenType.LPAREN
     },
 
     # alpha % beta;
@@ -528,9 +534,20 @@ FOLLOW_SET = {
         TokenType.LBRACE, TokenType.TRUE, TokenType.FALSE, TokenType.NONE, TokenType.MINUS
     },
 
+    # from alpha
     TokenType.FROM: {
         TokenType.IDENTIFIER
-    }
+    },
+
+    # data class
+    TokenType.DATA: {
+        TokenType.CLASS
+    },
+
+    # enum alpha
+    TokenType.ENUM: {
+        TokenType.IDENTIFIER
+    },
 }
 
 

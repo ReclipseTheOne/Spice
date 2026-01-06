@@ -7,7 +7,8 @@ from spice.parser.ast_nodes import (
     ExpressionStatement, PassStatement, Expression, ReturnStatement,
     IfStatement, ForStatement, WhileStatement, SwitchStatement, CaseClause,
     RaiseStatement, ImportStatement, FinalDeclaration, FunctionDeclaration,
-    IdentifierExpression, AnnotatedAssignment
+    IdentifierExpression, AnnotatedAssignment,
+    TypeParameter, DataClassDeclaration, EnumMember, EnumDeclaration
 )
 from spice.errors import SpiceError, ParserError
 
@@ -66,6 +67,11 @@ class Parser:
     def is_at_end(self) -> bool:
         """Check if we're at end of tokens."""
         return self.peek().type == TokenType.EOF
+
+    def skip_newlines(self) -> None:
+        """Skip any newline tokens at current position."""
+        while self.check(TokenType.NEWLINE) and not self.is_at_end():
+            self.advance()
 
     def peek(self, offset: int = 0) -> Token:
         """Return current (+ offset) token without advancing."""
@@ -343,6 +349,12 @@ class Parser:
         name = self.consume(TokenType.IDENTIFIER, "Expected class name").value
         parser_log.info(f"Parsing class '{name}'")
 
+        # Optional type parameters: <T, U>
+        type_parameters = []
+        if self.match(TokenType.LESS):
+            type_parameters = self.parse_type_parameters()
+            parser_log.info(f"Class '{name}' has {len(type_parameters)} type parameters")
+
         # Optional base classes and interfaces
         bases = []  # For extended classes
         interfaces = []  # For implemented interfaces
@@ -391,6 +403,7 @@ class Parser:
         declaration = ClassDeclaration(
             name=name,
             body=body,
+            type_parameters=type_parameters,
             bases=bases,
             interfaces=interfaces,
             is_abstract=is_abstract,
@@ -401,6 +414,163 @@ class Parser:
 
         declaration.compiler_flags = list(compiler_flags or [])
         return declaration
+
+    def parse_type_parameters(self) -> List[TypeParameter]:
+        """Parse generic type parameters: <T, U extends Base, V>"""
+        params = []
+
+        while True:
+            start_token = self.peek()
+            name = self.consume(TokenType.IDENTIFIER, "Expected type parameter name").value
+            parser_log.info(f"Parsing type parameter '{name}'")
+
+            bound = None
+            if self.match(TokenType.EXTENDS):
+                bound = self.consume(TokenType.IDENTIFIER, "Expected bound type after 'extends'").value
+                parser_log.info(f"Type parameter '{name}' has bound: {bound}")
+
+            params.append(TypeParameter(
+                name=name,
+                bound=bound,
+                line=start_token.line,
+                column=start_token.column
+            ))
+
+            if not self.match(TokenType.COMMA):
+                break
+
+        self.consume(TokenType.GREATER, "Expected '>' after type parameters")
+        parser_log.info(f"Parsed {len(params)} type parameters")
+        return params
+
+    def parse_data_class(self) -> DataClassDeclaration:
+        """Parse data class declaration: data class Point(x: int, y: int);"""
+        start_token = self.peek()
+        start_line = start_token.line
+        start_column = start_token.column
+
+        self.consume(TokenType.DATA, "Expected 'data'")
+        self.consume(TokenType.CLASS, "Expected 'class' after 'data'")
+
+        name = self.consume(TokenType.IDENTIFIER, "Expected data class name").value
+        parser_log.info(f"Parsing data class '{name}'")
+
+        # Optional type parameters: <T, U>
+        type_parameters = []
+        if self.match(TokenType.LESS):
+            type_parameters = self.parse_type_parameters()
+
+        # Required fields: (x: int, y: int)
+        self.consume(TokenType.LPAREN, "Expected '(' after data class name")
+        fields = self.parse_parameters()
+        self.consume(TokenType.RPAREN, "Expected ')' after data class fields")
+        parser_log.info(f"Data class '{name}' has {len(fields)} fields")
+
+        # Optional body or semicolon
+        body = []
+        if self.match(TokenType.LBRACE):
+            parser_log.info(f"Parsing data class '{name}' body")
+            body = self.parse_class_body()
+            self.consume(TokenType.RBRACE, "Expected '}' after data class body")
+        else:
+            self.match(TokenType.SEMICOLON)
+
+        parser_log.info(f"Completed data class '{name}'")
+        return DataClassDeclaration(
+            name=name,
+            fields=fields,
+            body=body,
+            type_parameters=type_parameters,
+            line=start_line,
+            column=start_column
+        )
+
+    def parse_enum(self) -> EnumDeclaration:
+        """Parse enum declaration: enum Color { RED, GREEN, BLUE }"""
+        start_token = self.peek()
+        start_line = start_token.line
+        start_column = start_token.column
+
+        self.consume(TokenType.ENUM, "Expected 'enum'")
+
+        name = self.consume(TokenType.IDENTIFIER, "Expected enum name").value
+        parser_log.info(f"Parsing enum '{name}'")
+
+        self.consume(TokenType.LBRACE, "Expected '{' after enum name")
+
+        # Parse enum members: RED, GREEN, BLUE or EARTH(a, b)
+        members = []
+        while not self.check(TokenType.RBRACE, TokenType.SEMICOLON) and not self.is_at_end():
+            # Skip newlines
+            if self.match(TokenType.NEWLINE):
+                continue
+
+            member_token = self.peek()
+            member_name = self.consume(TokenType.IDENTIFIER, "Expected enum member name").value
+            parser_log.info(f"Parsing enum member '{member_name}'")
+
+            # Optional constructor arguments: EARTH(a, b)
+            args = []
+            if self.match(TokenType.LPAREN):
+                args = self.parse_arguments()
+                self.consume(TokenType.RPAREN, "Expected ')' after enum member arguments")
+                parser_log.info(f"Enum member '{member_name}' has {len(args)} arguments")
+
+            members.append(EnumMember(
+                name=member_name,
+                args=args,
+                line=member_token.line,
+                column=member_token.column
+            ))
+
+            # Optional comma between members
+            if not self.match(TokenType.COMMA):
+                break
+
+        # Skip any trailing newlines before closing brace or semicolon
+        while self.match(TokenType.NEWLINE):
+            continue
+
+        # Optional body after semicolon (constructor + methods)
+        body = []
+        if self.match(TokenType.SEMICOLON):
+            parser_log.info(f"Parsing enum '{name}' body (constructor and methods)")
+            body = self.parse_class_body()
+
+        self.consume(TokenType.RBRACE, "Expected '}' after enum declaration")
+
+        parser_log.info(f"Completed enum '{name}' with {len(members)} members and {len(body)} body members")
+        return EnumDeclaration(
+            name=name,
+            members=members,
+            body=body,
+            line=start_line,
+            column=start_column
+        )
+
+    def parse_arguments(self) -> List[Expression]:
+        """Parse function call arguments."""
+        args = []
+
+        # Skip newlines after opening paren
+        self.skip_newlines()
+
+        if not self.check(TokenType.RPAREN):
+            arg = self.parse_expression()
+            if arg:
+                args.append(arg)
+
+            while self.match(TokenType.COMMA):
+                # Skip newlines after comma
+                self.skip_newlines()
+                arg = self.parse_expression()
+                if arg:
+                    args.append(arg)
+
+        # Skip newlines before closing paren
+        self.skip_newlines()
+
+        return args
 
     def parse_class_body(self):
         """Parse class body statements."""
@@ -557,15 +727,23 @@ class Parser:
         """Parse function parameters."""
         params = []
 
+        # Skip newlines after opening paren
+        self.skip_newlines()
+
         if not self.check(TokenType.RPAREN):
             param = self.parse_parameter()
             params.append(param)
             parser_log.info(f"Added parameter: {param.name}" + (f" with type {param.type_annotation}" if param.type_annotation else ""))
 
             while self.match(TokenType.COMMA):
+                # Skip newlines after comma
+                self.skip_newlines()
                 param = self.parse_parameter()
                 params.append(param)
                 parser_log.info(f"Added parameter: {param.name}" + (f" with type {param.type_annotation}" if param.type_annotation else ""))
+
+        # Skip newlines before closing paren
+        self.skip_newlines()
 
         parser_log.info(f"Parsed {len(params)} parameters")
         return params
@@ -703,6 +881,20 @@ class Parser:
             parser_log.info("Parsing interface declaration")
             return self.parse_interface(start_token.line, start_token.column)
 
+        # Data class declaration
+        if self.check(TokenType.DATA):
+            if compiler_flags:
+                self.raise_parser_error("Compiler flags are not supported for data classes")
+            parser_log.info("Parsing data class declaration")
+            return self.parse_data_class()
+
+        # Enum declaration
+        if self.check(TokenType.ENUM):
+            if compiler_flags:
+                self.raise_parser_error("Compiler flags are not supported for enums")
+            parser_log.info("Parsing enum declaration")
+            return self.parse_enum()
+
         # Class declaration with modifiers (final can also start a variable declaration)
         is_final_class = False
         if self.check(TokenType.FINAL):
@@ -833,9 +1025,23 @@ class Parser:
         if self.check(TokenType.IMPORT, TokenType.FROM):
             return self.parse_import_statement()
 
-        # Expression statement
+        # Expression statement (may include typed attribute assignment like self.attr: Type = value)
         expr = self.parse_expression()
         if expr:
+            # Check for typed attribute assignment: expr: Type = value
+            if self.match(TokenType.COLON):
+                type_annotation = self._parse_type_annotation_string()
+                if not type_annotation:
+                    self.raise_parser_error("Expected type annotation after ':'")
+                value = None
+                if self.match(TokenType.ASSIGN):
+                    value = self.parse_expression()
+                    if value is None:
+                        self.raise_parser_error("Expected value after '=' in typed assignment")
+                has_semicolon = self.match(TokenType.SEMICOLON)
+                annotated = AnnotatedAssignment(target=expr, type_annotation=type_annotation, value=value)
+                return ExpressionStatement(expression=annotated, has_semicolon=has_semicolon)
+
             has_semicolon = self.match(TokenType.SEMICOLON)
             return ExpressionStatement(expression=expr, has_semicolon=has_semicolon)
 

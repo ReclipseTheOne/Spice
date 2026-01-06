@@ -35,6 +35,8 @@ class TypeChecker(CompileTimeCheck):
         self.table: Optional[SymbolTable] = None
         self.scope_stack: List[str] = []
         self._current_node = None  # Track current node for line/column info
+        # {var_name: {type_param: concrete_type}}
+        self._generic_bindings: dict[str, dict[str, str]] = {}
 
     def check(self, file: SpiceFile) -> bool:
         if not getattr(file, "symbol_table", None):
@@ -109,19 +111,32 @@ class TypeChecker(CompileTimeCheck):
         if not callee_info:
             return
 
-        functions, owner = callee_info
+        functions, owner, var_name = callee_info
         arg_types = [self._infer_expression_type(arg) for arg in node.arguments]
 
         if not functions:
             return
 
-        matching = [
-            func for func in functions
-            if self._arguments_match(arg_types, func.params)
-        ]
+        # Get type parameters and existing bindings for generic classes
+        type_params = []
+        existing_bindings = {}
+        if owner and owner in self.table.classes:
+            class_symbol = self.table.classes[owner]
+            type_params = class_symbol.type_parameters
+            if var_name and var_name in self._generic_bindings:
+                existing_bindings = self._generic_bindings[var_name]
 
-        if matching:
-            return
+        for func in functions:
+            match_result = self._arguments_match_generic(
+                arg_types, func.params, type_params, existing_bindings
+            )
+            if match_result is not None:
+                # Update bindings if we inferred new types
+                if var_name and match_result:
+                    if var_name not in self._generic_bindings:
+                        self._generic_bindings[var_name] = {}
+                    self._generic_bindings[var_name].update(match_result)
+                return
 
         arg_desc = ", ".join(str(t) for t in arg_types) if arg_types else ""
         owner_desc = f"{owner}." if owner else ""
@@ -145,20 +160,64 @@ class TypeChecker(CompileTimeCheck):
 
         return True
 
-    def _resolve_callee(self, node: CallExpression) -> Optional[Tuple[List[FunctionSymbol], Optional[str]]]:
+    def _resolve_callee(self, node: CallExpression) -> Optional[Tuple[List[FunctionSymbol], Optional[str], Optional[str]]]:
+        """Resolve callee to (functions, owner_type, variable_name)."""
         callee = node.callee
         if isinstance(callee, IdentifierExpression):
             scope = self.table.scopes.get("global")
             if scope:
                 funcs = scope.functions.get(callee.name, [])
-                return funcs, None
+                return funcs, None, None
         elif isinstance(callee, AttributeExpression):
             obj_type = self._infer_expression_type(callee.object)
+            var_name = None
+            if isinstance(callee.object, IdentifierExpression):
+                var_name = callee.object.name
             if obj_type and obj_type in self.table.classes:
                 class_symbol = self.table.classes[obj_type]
                 funcs = class_symbol.methods.get(callee.attribute, [])
-                return funcs, obj_type
+                return funcs, obj_type, var_name
         return None
+
+    def _arguments_match_generic(
+        self,
+        arg_types: List[Optional[str]],
+        params,
+        type_params: List[str],
+        existing_bindings: dict[str, str]
+    ) -> Optional[dict[str, str]]:
+        """
+        Match arguments to parameters with generic type inference.
+        Returns None if no match, or a dict of inferred bindings if match succeeds.
+        """
+        if len(arg_types) != len(params):
+            return None
+
+        # Start with existing bindings
+        inferred = dict(existing_bindings)
+
+        for arg_type, param in zip(arg_types, params):
+            param_type = param.type_annotation
+            if param_type is None or arg_type is None:
+                return None
+
+            if param_type in type_params:
+                # It's a generic type parameter
+                if param_type in inferred:
+                    # Already have a binding - check it matches
+                    if inferred[param_type] != arg_type:
+                        return None
+                else:
+                    # Infer the type from the argument
+                    inferred[param_type] = arg_type
+            else:
+                # Regular type - must match exactly
+                if arg_type != param_type:
+                    return None
+
+        # Return only the newly inferred bindings (not existing ones)
+        new_bindings = {k: v for k, v in inferred.items() if k not in existing_bindings}
+        return new_bindings if new_bindings else {}
 
     def _enforce_assignment_annotation(self, node: AssignmentExpression):
         if not isinstance(node.target, IdentifierExpression):

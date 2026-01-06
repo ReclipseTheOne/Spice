@@ -7,6 +7,7 @@ from spice.lexer.tokens import Token, TokenType
 
 from spice.printils import lexer_log
 
+
 class Lexer:
     """Tokenizes Spice source code."""
 
@@ -52,6 +53,8 @@ class Lexer:
         'switch': TokenType.SWITCH,
         'case': TokenType.CASE,
         'default': TokenType.DEFAULT,
+        'data': TokenType.DATA,
+        'enum': TokenType.ENUM,
     }
 
     # Token patterns
@@ -60,7 +63,13 @@ class Lexer:
         (r'#.*$', TokenType.COMMENT),
 
         # Numbers
+        # Scientific notation with decimal: 2.34e-10, 1.5E+3
+        (r'\d+\.\d+[eE][+-]?\d+', TokenType.NUMBER),
+        # Scientific notation without decimal: 1e10, 2E-5
+        (r'\d+[eE][+-]?\d+', TokenType.NUMBER),
+        # Regular float: 3.14
         (r'\d+\.\d+', TokenType.NUMBER),
+        # Regular integer: 42
         (r'\d+', TokenType.NUMBER),
 
         # Special Strings
@@ -141,7 +150,7 @@ class Lexer:
 
         tokens = []
         lines = source.split('\n')
-        
+
         lexer_log.info(f"Processing {len(lines)} lines of code")
 
         for line_num, line in enumerate(lines, 1):

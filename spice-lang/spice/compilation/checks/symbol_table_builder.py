@@ -4,19 +4,20 @@ from typing import List, Optional
 
 from spice.compilation.checks.compile_time_check import CompileTimeCheck
 from spice.compilation.spicefile import SpiceFile
-from spice.compilation.symbol_table import SymbolTable, VariableSymbol, FunctionSymbol, ClassSymbol
+from spice.compilation.symbol_table import SymbolTable, VariableSymbol, FunctionSymbol, ClassSymbol, InterfaceSymbol
 from spice.parser.ast_nodes import (
     AnnotatedAssignment,
     AssignmentExpression,
-    AttributeExpression,
     ClassDeclaration,
+    DataClassDeclaration,
+    EnumDeclaration,
     ExpressionStatement,
     FinalDeclaration,
     FunctionDeclaration,
     IdentifierExpression,
+    InterfaceDeclaration,
     LiteralExpression,
     Module,
-    Parameter,
     CallExpression,
 )
 
@@ -78,6 +79,12 @@ class SymbolTableBuilder(CompileTimeCheck):
     def _visit_node(self, node):
         if isinstance(node, ClassDeclaration):
             self._visit_class(node)
+        elif isinstance(node, DataClassDeclaration):
+            self._visit_data_class(node)
+        elif isinstance(node, EnumDeclaration):
+            self._visit_enum(node)
+        elif isinstance(node, InterfaceDeclaration):
+            self._visit_interface(node)
         elif isinstance(node, FunctionDeclaration):
             self._visit_function(node)
         elif isinstance(node, ExpressionStatement):
@@ -88,8 +95,56 @@ class SymbolTableBuilder(CompileTimeCheck):
             for child in node.body:
                 self._visit_node(child)
 
-    def _visit_class(self, node: ClassDeclaration):
+    def _visit_interface(self, node: InterfaceDeclaration):
+        interface_symbol = InterfaceSymbol(name=node.name, node=node, scope=self._current_scope())
+        self.symbol_table.interfaces[node.name] = interface_symbol
+
+    def _visit_data_class(self, node: DataClassDeclaration):
+        """Visit data class declaration - treat like a regular class."""
         class_symbol = ClassSymbol(name=node.name, node=node, scope=self._current_scope())
+        self.symbol_table.classes[node.name] = class_symbol
+        class_scope = node.name
+        self._push_scope(class_scope)
+
+        # Register fields as variables in the class scope
+        for field in node.fields:
+            self._add_variable(field.name, field.type_annotation, field)
+
+        for member in node.body:
+            if isinstance(member, FunctionDeclaration):
+                method_symbol = self._add_function(member, owner_scope=class_scope)
+                class_symbol.methods.setdefault(member.name, []).append(method_symbol)
+                self._visit_function(member, owner_scope=class_scope)
+            else:
+                self._visit_node(member)
+        self._pop_scope()
+
+    def _visit_enum(self, node: EnumDeclaration):
+        """Visit enum declaration - treat like a class."""
+        class_symbol = ClassSymbol(name=node.name, node=node, scope=self._current_scope())
+        self.symbol_table.classes[node.name] = class_symbol
+        class_scope = node.name
+        self._push_scope(class_scope)
+
+        # Visit methods if any
+        for member in node.body:
+            if isinstance(member, FunctionDeclaration):
+                method_symbol = self._add_function(member, owner_scope=class_scope)
+                class_symbol.methods.setdefault(member.name, []).append(method_symbol)
+                self._visit_function(member, owner_scope=class_scope)
+            else:
+                self._visit_node(member)
+
+        self._pop_scope()
+
+    def _visit_class(self, node: ClassDeclaration):
+        type_param_names = [tp.name for tp in node.type_parameters]
+        class_symbol = ClassSymbol(
+            name=node.name,
+            node=node,
+            scope=self._current_scope(),
+            type_parameters=type_param_names
+        )
         self.symbol_table.classes[node.name] = class_symbol
         class_scope = node.name
         self._push_scope(class_scope)

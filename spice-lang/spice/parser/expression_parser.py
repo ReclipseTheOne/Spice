@@ -516,6 +516,9 @@ class ExpressionParser:
         """Parse function call arguments."""
         args = []
 
+        # Skip newlines after opening paren
+        self.parser.skip_newlines()
+
         if not self.parser.check(TokenType.RPAREN):
             while True:
                 # Try to parse named argument first
@@ -546,15 +549,19 @@ class ExpressionParser:
 
                 if not self.parser.match(TokenType.COMMA):
                     break
+                # Skip newlines after comma
+                self.parser.skip_newlines()
+
+        # Skip newlines before closing paren
+        self.parser.skip_newlines()
 
         return args
 
-
+    # TBI
     def parse_lambda(self) -> Expression:
         """Parse lambda expressions."""
-        # Implementation depends on your AST structure
-        # This is a placeholder
         raise NotImplementedError("Lambda parsing not implemented yet")
+
     def parse_subscript_or_slice(self) -> Expression:
         """Parse subscript index or slice notation [start:stop:step]."""
         # Check for empty subscript

@@ -1,4 +1,8 @@
-# Valid directory entry point for Spice
+# Valid directory entry point for Spice.
+# Spicy can take a directory as a path for compilation with the condition that the directory contains a '__main__.spc' file.
+
+from data_classes import Person
+
 interface A {
     def func(a: int, b: str) -> None;
     def func(a: int, b: int) -> None;
@@ -21,4 +25,9 @@ class C extends B {
     }
 }
 
-final final_var: int = 2;
+
+class D extends Animal {
+    def make_sound() -> str {
+        return "D-sound";
+    }
+}

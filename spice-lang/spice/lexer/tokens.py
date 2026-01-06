@@ -54,6 +54,8 @@ class TokenType(Enum):
     STATIC = auto()
     EXTENDS = auto()
     IMPLEMENTS = auto()
+    DATA = auto()
+    ENUM = auto()
 
     # Operators
     PLUS = auto()

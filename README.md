@@ -116,6 +116,38 @@ final class Circle extends Shape implements Drawable {
     }
 }
 
+// Simple Constructors
+class Circle {
+    def Circle(args...) -> None {  # You can replace constructor's __init__ with the class name for cleaner code
+        ...
+    }
+}
+
+// Enums
+enum MyEnum {
+    MY_ENUM_ENTRY("aba", "caba");
+
+    def MyEnum(self, str1: str, str2: str) -> None {
+        self.first = str1;
+        self.second = str2;
+    }
+
+    def my_enum_method() -> str {
+        return self.first + self.second;
+    }
+}
+
+// Generics
+class FinalWrapper<T> {
+    def FinalWrapper(self, value: T) -> None {
+        self.value = value;
+    }
+
+    def get() -> T {
+        return self.value;
+    }
+}
+
 // Strict Typing - Anything not directly made with a constructor / primitive requires type inference
 myVar = A(); // Will automatically get the A type infered on Transform
 or

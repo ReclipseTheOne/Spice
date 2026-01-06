@@ -86,12 +86,29 @@ class Parameter(ASTNode):
 
 
 @dataclass
+class TypeParameter(ASTNode):
+    """Type parameter for generics: <T extends Bound>."""
+    name: str
+    bound: Optional[str] = None  # Upper bound constraint
+    line: int = 0
+    column: int = 0
+
+    def accept(self, visitor):
+        return visitor.visit_TypeParameter(self)
+
+    def __str__(self) -> str:
+        bound_str = f" extends {self.bound}" if self.bound else ""
+        return f"TypeParameter(name={self.name}{bound_str})"
+
+
+@dataclass
 class ClassDeclaration(ASTNode):
     """Class declaration with modifiers."""
     name: str
     body: List[ASTNode]
-    bases: List[str] = field(default_factory=list)  # Classes extended with 'extends'
-    interfaces: List[str] = field(default_factory=list)  # Interfaces implemented with 'implements'
+    type_parameters: List[TypeParameter] = field(default_factory=list)
+    bases: List[str] = field(default_factory=list)
+    interfaces: List[str] = field(default_factory=list)
     is_abstract: bool = False
     is_final: bool = False
     compiler_flags: List[str] = field(default_factory=list)
@@ -114,6 +131,7 @@ class FunctionDeclaration(ASTNode):
     params: List[Parameter]
     body: Optional[List[ASTNode]] = None
     return_type: Optional[str] = None
+    type_parameters: List[TypeParameter] = field(default_factory=list)
     is_static: bool = False
     is_abstract: bool = False
     is_final: bool = False
@@ -521,3 +539,56 @@ class FinalDeclaration(ASTNode):
     def __str__(self) -> str:
         return (f"FinalDeclaration(target={self.target}, value={self.value}, "
                 f"type_annotation={self.type_annotation})")
+
+
+@dataclass
+class DataClassDeclaration(ASTNode):
+    """Data class declaration: data class Point(x: int, y: int);"""
+    name: str
+    fields: List[Parameter]  # Fields defined in parentheses
+    body: List[ASTNode] = field(default_factory=list)  # Optional methods
+    type_parameters: List['TypeParameter'] = field(default_factory=list)
+    bases: List[str] = field(default_factory=list)
+    line: int = 0
+    column: int = 0
+
+    def accept(self, visitor):
+        return visitor.visit_DataClassDeclaration(self)
+
+    def __str__(self) -> str:
+        type_params = f"<{', '.join(tp.name for tp in self.type_parameters)}>" if self.type_parameters else ""
+        fields_str = ", ".join(str(f) for f in self.fields)
+        return f"DataClassDeclaration(name={self.name}{type_params}, fields=[{fields_str}], body={len(self.body)} members)"
+
+
+@dataclass
+class EnumMember(ASTNode):
+    """Enum member: RED or EARTH(a, b)"""
+    name: str
+    args: List[Expression] = field(default_factory=list)  # Constructor arguments
+    line: int = 0
+    column: int = 0
+
+    def accept(self, visitor):
+        return visitor.visit_EnumMember(self)
+
+    def __str__(self) -> str:
+        args_str = f"({', '.join(str(a) for a in self.args)})" if self.args else ""
+        return f"EnumMember(name={self.name}{args_str})"
+
+
+@dataclass
+class EnumDeclaration(ASTNode):
+    """Enum declaration: enum Color { RED, GREEN, BLUE }"""
+    name: str
+    members: List[EnumMember]
+    body: List[ASTNode] = field(default_factory=list)  # Constructor and methods after semicolon
+    line: int = 0
+    column: int = 0
+
+    def accept(self, visitor):
+        return visitor.visit_EnumDeclaration(self)
+
+    def __str__(self) -> str:
+        members_str = ", ".join(m.name for m in self.members)
+        return f"EnumDeclaration(name={self.name}, members=[{members_str}], body={len(self.body)} members)"

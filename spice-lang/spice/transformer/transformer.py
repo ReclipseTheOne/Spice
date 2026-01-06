@@ -11,7 +11,7 @@ from spice.parser import (
     BinaryExpression, ReturnStatement, IfStatement, SwitchStatement,
     CaseClause, LogicalExpression, UnaryExpression, RaiseStatement,
     ImportStatement, DictEntry, SubscriptExpression, ComprehensionExpression,
-    FinalDeclaration
+    FinalDeclaration, DataClassDeclaration, EnumDeclaration, EnumMember, TypeParameter
 )
 
 from spice.printils import transformer_log
@@ -29,6 +29,7 @@ class Transformer:
         self.enable_runtime_final_checks = enable_runtime_final_checks
         self.final_scope_stack: List[Dict[str, str]] = [dict()]
         self.class_names: set[str] = set()
+        self._class_stack: List[str] = []  # Track nested class context for constructor name transformation
 
     def transform(self, ast: Module) -> str:
         """Transform AST to Python code."""
@@ -54,7 +55,10 @@ class Transformer:
     def visit_module(self, node: Module):
         """Visit module node."""
         transformer_log.custom("transform", f"Processing module with {len(node.body)} top-level statements")
-        self.class_names = {stmt.name for stmt in node.body if isinstance(stmt, ClassDeclaration)}
+        self.class_names = {
+            stmt.name for stmt in node.body
+            if isinstance(stmt, (ClassDeclaration, DataClassDeclaration, EnumDeclaration))
+        }
 
         # Add imports if needed
         has_interfaces = any(isinstance(stmt, InterfaceDeclaration) for stmt in node.body)
@@ -64,6 +68,20 @@ class Transformer:
             for stmt in node.body
         )
         has_dispatch = self._module_uses_dispatch(node)
+        has_dataclass = any(isinstance(stmt, DataClassDeclaration) for stmt in node.body)
+        has_enum = any(isinstance(stmt, EnumDeclaration) for stmt in node.body)
+        # Check if any enum needs auto()
+        has_enum_auto = any(
+            isinstance(stmt, EnumDeclaration) and any(not m.args for m in stmt.members)
+            for stmt in node.body
+        )
+        # Check for generics and collect all TypeVars
+        all_type_params = []
+        for stmt in node.body:
+            if isinstance(stmt, (ClassDeclaration, DataClassDeclaration)):
+                type_params = getattr(stmt, 'type_parameters', [])
+                all_type_params.extend(type_params)
+        has_generics = len(all_type_params) > 0
 
         # Also check for final methods within class bodies
         if not has_final:
@@ -92,7 +110,29 @@ class Transformer:
             transformer_log.info("Adding import for multipledispatch")
             self.output.append("from multipledispatch import dispatch\n")
 
-        if has_interfaces or has_abstract or has_final or has_dispatch:
+        if has_dataclass:
+            transformer_log.info("Adding import for dataclass")
+            self.output.append("from dataclasses import dataclass\n")
+
+        if has_enum:
+            transformer_log.info("Adding import for Enum")
+            if has_enum_auto:
+                self.output.append("from enum import Enum, auto\n")
+            else:
+                self.output.append("from enum import Enum\n")
+
+        if has_generics:
+            transformer_log.info("Adding import for Generic and TypeVar")
+            self.output.append("from typing import Generic, TypeVar\n")
+            # Add TypeVar definitions (deduplicated by name)
+            seen_type_params = set()
+            for tp in all_type_params:
+                if tp.name not in seen_type_params:
+                    seen_type_params.add(tp.name)
+                    bound = f", bound={tp.bound}" if tp.bound else ""
+                    self.output.append(f"{tp.name} = TypeVar('{tp.name}'{bound})\n")
+
+        if has_interfaces or has_abstract or has_final or has_dispatch or has_dataclass or has_enum or has_generics:
             self._new_line() # Add extra line after imports
 
         # Visit each statement
@@ -212,9 +252,19 @@ class Transformer:
         previous_in_class = self.in_class
         self.in_class = True
         self._push_final_scope()
+        self._class_stack.append(node.name)  # Push class name for constructor transformation
+
+        # Handle generics
+        type_params = getattr(node, 'type_parameters', [])
 
         # Handle inheritance
         bases = []
+
+        # Add Generic[T, U, ...] for generic classes
+        if type_params:
+            type_param_names = ", ".join(tp.name for tp in type_params)
+            bases.append(f"Generic[{type_param_names}]")
+
         if node.bases:
             bases.extend(node.bases)
         if node.interfaces:
@@ -252,12 +302,126 @@ class Transformer:
 
         self.indent_level -= 1
         self._pop_final_scope()
+        self._class_stack.pop()  # Pop class name
+        self.in_class = previous_in_class
+
+
+    def visit_DataClassDeclaration(self, node: DataClassDeclaration):
+        """Visit data class declaration node."""
+        transformer_log.custom("transform", f"Transforming data class '{node.name}'")
+
+        previous_in_class = self.in_class
+        self.in_class = True
+        self._class_stack.append(node.name)
+
+        # Handle generics
+        type_params = getattr(node, 'type_parameters', [])
+
+        # Add dataclass decorator
+        self.output.append("@dataclass\n")
+
+        # Handle inheritance
+        bases = []
+
+        # Add Generic[T, U, ...] for generic data classes
+        if type_params:
+            type_param_names = ", ".join(tp.name for tp in type_params)
+            bases.append(f"Generic[{type_param_names}]")
+
+        if node.bases:
+            bases.extend(node.bases)
+
+        base_str = f"({', '.join(bases)})" if bases else ""
+
+        # Class definition
+        self.output.append(f"class {node.name}{base_str}:\n")
+        self.indent_level += 1
+
+        # Add docstring
+        self.output.append(self._indent(f'"""{node.name} data class."""\n'))
+
+        # Fields as class attributes with type hints
+        for field in node.fields:
+            type_ann = f": {field.type_annotation}" if field.type_annotation else ""
+            default = f" = {field.default}" if field.default else ""
+            self.output.append(self._indent(f"{field.name}{type_ann}{default}\n"))
+
+        # Add blank line between fields and methods if there are both
+        if node.fields and node.body:
+            self._new_line()
+
+        # Optional methods
+        for i, stmt in enumerate(node.body):
+            transformer_log.info(f"Transforming data class member: {type(stmt).__name__}")
+            self.visit(stmt)
+            if i < len(node.body) - 1:
+                self._new_line()
+
+        # If no fields and no body, add pass
+        if not node.fields and not node.body:
+            self.output.append(self._indent("pass\n"))
+
+        self.indent_level -= 1
+        self._class_stack.pop()
+        self.in_class = previous_in_class
+
+
+    def visit_EnumDeclaration(self, node: EnumDeclaration):
+        """Visit enum declaration node."""
+        transformer_log.custom("transform", f"Transforming enum '{node.name}'")
+
+        previous_in_class = self.in_class
+        self.in_class = True
+        self._class_stack.append(node.name)
+
+        # Class definition
+        self.output.append(f"class {node.name}(Enum):\n")
+        self.indent_level += 1
+
+        # Add docstring
+        self.output.append(self._indent(f'"""{node.name} enum."""\n'))
+
+        # Enum members
+        if node.members:
+            for member in node.members:
+                if member.args:
+                    # Member with arguments: EARTH = (5.97e24, 6.371e6)
+                    args_str = ", ".join(self.expr_to_str(arg) for arg in member.args)
+                    self.output.append(self._indent(f"{member.name} = ({args_str})\n"))
+                else:
+                    # Simple member: RED = auto()
+                    self.output.append(self._indent(f"{member.name} = auto()\n"))
+
+            # Add blank line between members and methods if there are methods
+            if node.body:
+                self._new_line()
+
+        # Constructor and methods (constructor uses class name -> __init__)
+        for i, stmt in enumerate(node.body):
+            transformer_log.info(f"Transforming enum member: {type(stmt).__name__}")
+            self.visit(stmt)
+            if i < len(node.body) - 1:
+                self._new_line()
+
+        # If no members and no body, add pass
+        if not node.members and not node.body:
+            self.output.append(self._indent("pass\n"))
+
+        self.indent_level -= 1
+        self._class_stack.pop()
         self.in_class = previous_in_class
 
 
     def visit_FunctionDeclaration(self, node: FunctionDeclaration):
         """Visit function declaration node."""
-        transformer_log.custom("transform", f"Transforming {'method' if self.in_class else 'function'} '{node.name}'")
+        # Transform constructor name: ClassName -> __init__
+        current_class = self._get_current_class_name()
+        method_name = node.name
+        if current_class and node.name == current_class:
+            method_name = "__init__"
+            transformer_log.info(f"Transforming constructor '{node.name}' to '__init__'")
+
+        transformer_log.custom("transform", f"Transforming {'method' if self.in_class else 'function'} '{method_name}'")
         self._push_final_scope()
         if node.is_abstract:
             transformer_log.info("Method is abstract")
@@ -300,7 +464,7 @@ class Transformer:
         return_annotation = f" -> {node.return_type}" if node.return_type else ""
 
         # Function definition
-        self.output.append(self._indent(f"def {node.name}({params_str}){return_annotation}:\n"))
+        self.output.append(self._indent(f"def {method_name}({params_str}){return_annotation}:\n"))
         self.indent_level += 1
 
         # Function body
@@ -313,7 +477,7 @@ class Transformer:
             self.output.append(self._indent("pass\n"))
         else:
             # Add docstring
-            self.output.append(self._indent(f'"""{node.name} {"method" if self.in_class else "function"}."""\n'))
+            self.output.append(self._indent(f'"""{method_name} {"method" if self.in_class else "function"}."""\n'))
 
             # Transform function body statements
             for stmt in node.body:
@@ -474,6 +638,20 @@ class Transformer:
     def visit_CallExpression(self, node: CallExpression):
         """Visit call expression node."""
         transformer_log.custom("transform", "Transforming function/method call")
+
+        # Check for super(...) shorthand - transform to super().__init__(...)
+        if isinstance(node.callee, IdentifierExpression) and node.callee.name == "super":
+            args = []
+            for arg in node.arguments:
+                arg_output_before = len(self.output)
+                self.visit(arg)
+                arg_len = len(self.output) - arg_output_before
+                arg_str = ''.join(self.output[-arg_len:])
+                self.output = self.output[:-arg_len]
+                args.append(arg_str)
+            arg_str = ", ".join(args)
+            self.output.append(f"super().__init__({arg_str})")
+            return
 
         # Visit the callee
         output_before = len(self.output)
@@ -830,3 +1008,7 @@ class Transformer:
             if name in scope:
                 return scope[name]
         return None
+
+    def _get_current_class_name(self) -> Optional[str]:
+        """Get the current class name from the stack."""
+        return self._class_stack[-1] if self._class_stack else None
