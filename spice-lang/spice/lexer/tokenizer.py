@@ -134,6 +134,10 @@ class Lexer:
         (r';', TokenType.SEMICOLON),
         (r'\.', TokenType.DOT),
 
+        # Annotations
+        (r'@\(', TokenType.AT_LPAREN),  # Needs to be first
+        (r'@', TokenType.AT),
+
         # Identifiers (must come after keywords)
         # Note: Identifiers and function/method calls are always valid operands in logical/boolean expressions (see parser).
         (r'[a-zA-Z_][a-zA-Z0-9_]*', TokenType.IDENTIFIER),

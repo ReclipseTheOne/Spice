@@ -3,7 +3,7 @@
 import pytest
 from spice.lexer import Lexer
 from spice.parser import Parser
-from spice.parser.ast_nodes import InterfaceDeclaration, AnnotatedAssignment, ExpressionStatement
+from spice.parser.ast_nodes import InterfaceDeclaration, AssignmentExpression, ExpressionStatement
 from testutils import (
     assert_contains_all, assert_count, log_test_start,
     log_test_result, safe_assert
@@ -149,14 +149,14 @@ b: List[int] = [];
         first_stmt = ast.body[0]
         safe_assert(isinstance(first_stmt, ExpressionStatement), "First statement should be expression")
         first_expr = first_stmt.expression
-        safe_assert(isinstance(first_expr, AnnotatedAssignment), "First statement should be typed assignment")
+        safe_assert(isinstance(first_expr, AssignmentExpression), "First statement should be assignment expression")
         safe_assert(first_expr.type_annotation == "int", f"Expected 'int', got {first_expr.type_annotation}")
         safe_assert(first_expr.value is None, "First typed declaration should not have a value")
 
         second_stmt = ast.body[1]
         safe_assert(isinstance(second_stmt, ExpressionStatement), "Second statement should be expression")
         second_expr = second_stmt.expression
-        safe_assert(isinstance(second_expr, AnnotatedAssignment), "Second statement should be typed assignment")
+        safe_assert(isinstance(second_expr, AssignmentExpression), "Second statement should be assignment expression")
         safe_assert(second_expr.type_annotation == "List[int]", f"Unexpected type annotation {second_expr.type_annotation}")
         safe_assert(second_expr.value is not None, "Second typed declaration should include an initializer")
 

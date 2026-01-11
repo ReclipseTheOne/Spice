@@ -7,6 +7,20 @@ from spice.utils import generate_spc_stub
 
 
 class SpiceFile:
+    """
+    Holder for a Spice source file and its compilation data.
+
+    Manages the source file path, generated output paths, tokens, AST,
+    and import tracking throughout the compilation pipeline.
+    """
+
+    # Extension mapping for different emit modes
+    EMIT_EXTENSIONS = {
+        "py": ".py",
+        "pyx": ".pyx",
+        "exe": ".pyx"
+    }
+
     def __init__(self, path: Path) -> None:
         self.is_directory: bool = path.is_dir()
 
@@ -24,6 +38,11 @@ class SpiceFile:
         self.source: str = Path(self.path).read_text(encoding='utf-8')
 
         self._init_defaults()
+
+    def get_output_path(self, emit: str = "py") -> Path:
+        """Get the output path for the given emit mode."""
+        ext = self.EMIT_EXTENSIONS.get(emit, ".py")
+        return self.path.with_suffix(ext)
 
     def _init_defaults(self) -> None:
         """Initialize default values for all mutable attributes."""

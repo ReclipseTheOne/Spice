@@ -10,17 +10,21 @@ import click
 @click.command()
 @click.argument('source', type=click.Path(exists=True))
 @click.option('-o', '--output', type=click.Path(), help='Output file (default: <source>.py)')
+@click.option('-e', '--emit', type=click.Choice(['py', 'pyx', 'exe']), default='py', help='Compilation target (default: py)')
+@click.option('-k', '--keep-intermidiates', is_flag=True, help='Keep intermidiates generated during compilation (only applies to exe emit)')
 @click.option('-c', '--check', is_flag=True, help='Check syntax without generating output')
 @click.option('-w', '--watch', is_flag=True, help='Watch file for changes. This option disables verbosity.')
 @click.option('-v', '--verbose', is_flag=True, help='Verbose output')
 @click.option('-nf', '--no-final-check', is_flag=True, help='Skip final type checks at compilation')
 @click.option('--runtime-checks', is_flag=True, help='Add runtime type checking to output')
 @click.version_option(package_name='spicy', prog_name='spicy')
-def from_cli(source: str, output: Optional[str], check: bool, watch: bool, verbose: bool, no_final_check: bool, runtime_checks: bool):
-    """Compile Spice (.spc) files to Python."""
+def from_cli(source: str, output: Optional[str], emit: str, keep_intermidiates: bool, check: bool, watch: bool, verbose: bool, no_final_check: bool, runtime_checks: bool):
+    """Compile Spice (.spc) files to Python, Cython, or standalone executables."""
     flags: CLI_FLAGS = CLI_FLAGS(
         source=Path(source),
         output=Path(output) if output else None,
+        emit=emit,
+        keep_intermidiates=keep_intermidiates,
         check=check,
         watch=watch,
         verbose=verbose,

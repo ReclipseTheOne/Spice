@@ -139,19 +139,29 @@ class SpicePipeline:
 
     @staticmethod
     def transform_and_write(file: SpiceFile, flags: CLI_FLAGS):
-        """Transform the AST of the current Spice File into Python code and write it to disk"""
+        """Transform the AST of the current Spice File into target code and write it to disk."""
+        target = "Cython" if flags.emit in ("pyx", "exe") else "Python"
+        pipeline_log.custom("pipeline", f"Transforming file to {target}: {file.path.resolve().as_posix()}")
 
-        pipeline_log.custom("pipeline", f"Transforming file: {file.path.resolve().as_posix()}")
+        transformer: Transformer = Transformer(
+            emit=flags.emit,
+            enable_runtime_final_checks=flags.runtime_checks
+        )
+        output_code = transformer.transform(file.ast)
 
-        transformer: Transformer = Transformer(enable_runtime_final_checks=flags.runtime_checks)
-        file.py_code = transformer.transform(file.ast)
-
+        # Determine output path based on emit mode
+        output_path = file.get_output_path(flags.emit)
         if isinstance(flags.output, Path):
-            file.py_path = flags.output.resolve() / file.py_path
+            output_path = flags.output.resolve() / output_path.name
 
-        with open(file.py_path, 'w', encoding='utf-8') as f:
-            pipeline_log.custom("pipeline", f"Writing...")
-            f.write(file.py_code)
+        with open(output_path, 'w', encoding='utf-8') as f:
+            pipeline_log.custom("pipeline", f"Writing to {output_path}...")
+            f.write(output_code)
+
+        # For exe mode, compile the generated .pyx to binary
+        if flags.emit == "exe":
+            from spice.compilation.cython_compiler import compile_to_executable
+            compile_to_executable(output_path, flags)
 
     @staticmethod
     def walk(root: Path, spc_file: Optional[SpiceFile], flags: CLI_FLAGS) -> SpiceFile:

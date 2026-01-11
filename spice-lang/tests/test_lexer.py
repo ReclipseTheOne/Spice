@@ -195,7 +195,7 @@ x = 5  # inline comment"""
 
     def test_error_on_invalid_character(self):
         """Test error handling for invalid characters."""
-        source = "valid @ invalid"
+        source = "valid $ invalid"
 
         log_test_start("test_error_on_invalid_character", source)
         lexer = Lexer()
@@ -203,7 +203,7 @@ x = 5  # inline comment"""
         # This should raise a SyntaxError
         try:
             tokens = lexer.tokenize(source)
-            safe_assert(False, "Expected SyntaxError for invalid character '@'")
+            safe_assert(False, "Expected SyntaxError for invalid character '$'")
         except SyntaxError as e:
             print(f"Correctly caught SyntaxError: {e}", flush=True)
             # Test passes if we get here
@@ -235,3 +235,95 @@ x = 5  # inline comment"""
                 number_tokens[i].value == expected,
                 f"Token {i}: expected '{expected}', got '{number_tokens[i].value}'"
             )
+
+    def test_dict_literal(self):
+        """Test dict literal tokenization."""
+        source = '{"key": "value", "num": 42}'
+
+        log_test_start("test_dict_literal", source)
+        lexer = Lexer()
+        tokens = lexer.tokenize(source)
+
+        token_info = "\n".join([f"   {i}: {token.type.name} = '{token.value}'" for i, token in enumerate(tokens)])
+        print(f"Tokenized {len(tokens)} tokens:")
+        print(token_info, flush=True)
+
+        safe_assert(tokens[0].type == TokenType.LBRACE, "First token should be LBRACE")
+        safe_assert(tokens[1].type == TokenType.STRING, "Second token should be STRING")
+        safe_assert(tokens[2].type == TokenType.COLON, "Third token should be COLON")
+
+        rbrace_tokens = [t for t in tokens if t.type == TokenType.RBRACE]
+        safe_assert(
+            len(rbrace_tokens) == 1,
+            f"Expected 1 RBRACE token, found {len(rbrace_tokens)}"
+        )
+
+    def test_dict_comprehension(self):
+        """Test dict comprehension tokenization."""
+        source = "{k: v for k, v in items}"
+
+        log_test_start("test_dict_comprehension", source)
+        lexer = Lexer()
+        tokens = lexer.tokenize(source)
+
+        token_info = "\n".join([f"   {i}: {token.type.name} = '{token.value}'" for i, token in enumerate(tokens)])
+        print(f"Tokenized {len(tokens)} tokens:")
+        print(token_info, flush=True)
+
+        safe_assert(tokens[0].type == TokenType.LBRACE, "First token should be LBRACE")
+
+        for_tokens = [t for t in tokens if t.type == TokenType.FOR]
+        safe_assert(
+            len(for_tokens) == 1,
+            f"Expected 1 FOR token, found {len(for_tokens)}"
+        )
+
+        in_tokens = [t for t in tokens if t.type == TokenType.IN]
+        safe_assert(
+            len(in_tokens) == 1,
+            f"Expected 1 IN token, found {len(in_tokens)}"
+        )
+
+        rbrace_tokens = [t for t in tokens if t.type == TokenType.RBRACE]
+        safe_assert(
+            len(rbrace_tokens) == 1,
+            f"Expected 1 RBRACE token, found {len(rbrace_tokens)}"
+        )
+
+    def test_list_comprehension(self):
+        """Test list comprehension tokenization."""
+        source = "[x * 2 for x in items if x > 0]"
+
+        log_test_start("test_list_comprehension", source)
+        lexer = Lexer()
+        tokens = lexer.tokenize(source)
+
+        token_info = "\n".join([f"   {i}: {token.type.name} = '{token.value}'" for i, token in enumerate(tokens)])
+        print(f"Tokenized {len(tokens)} tokens:")
+        print(token_info, flush=True)
+
+        safe_assert(tokens[0].type == TokenType.LBRACKET, "First token should be LBRACKET")
+
+        for_tokens = [t for t in tokens if t.type == TokenType.FOR]
+        safe_assert(
+            len(for_tokens) == 1,
+            f"Expected 1 FOR token, found {len(for_tokens)}"
+        )
+
+        in_tokens = [t for t in tokens if t.type == TokenType.IN]
+        safe_assert(
+            len(in_tokens) == 1,
+            f"Expected 1 IN token, found {len(in_tokens)}"
+        )
+
+        if_tokens = [t for t in tokens if t.type == TokenType.IF]
+        safe_assert(
+            len(if_tokens) == 1,
+            f"Expected 1 IF token, found {len(if_tokens)}"
+        )
+
+        rbracket_tokens = [t for t in tokens if t.type == TokenType.RBRACKET]
+        safe_assert(
+            len(rbracket_tokens) == 1,
+            f"Expected 1 RBRACKET token, found {len(rbracket_tokens)}"
+        )

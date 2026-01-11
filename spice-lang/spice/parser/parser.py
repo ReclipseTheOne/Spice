@@ -7,7 +7,7 @@ from spice.parser.ast_nodes import (
     ExpressionStatement, PassStatement, Expression, ReturnStatement,
     IfStatement, ForStatement, WhileStatement, SwitchStatement, CaseClause,
     RaiseStatement, ImportStatement, FinalDeclaration, FunctionDeclaration,
-    IdentifierExpression, AnnotatedAssignment,
+    IdentifierExpression, AssignmentExpression,
     TypeParameter, DataClassDeclaration, EnumMember, EnumDeclaration
 )
 from spice.errors import SpiceError, ParserError
@@ -1034,13 +1034,17 @@ class Parser:
                 if not type_annotation:
                     self.raise_parser_error("Expected type annotation after ':'")
                 value = None
+                operator = None
                 if self.match(TokenType.ASSIGN):
+                    operator = '='
                     value = self.parse_expression()
                     if value is None:
                         self.raise_parser_error("Expected value after '=' in typed assignment")
                 has_semicolon = self.match(TokenType.SEMICOLON)
-                annotated = AnnotatedAssignment(target=expr, type_annotation=type_annotation, value=value)
-                return ExpressionStatement(expression=annotated, has_semicolon=has_semicolon)
+                assignment = AssignmentExpression(
+                    target=expr, value=value, operator=operator, type_annotation=type_annotation
+                )
+                return ExpressionStatement(expression=assignment, has_semicolon=has_semicolon)
 
             has_semicolon = self.match(TokenType.SEMICOLON)
             return ExpressionStatement(expression=expr, has_semicolon=has_semicolon)
@@ -1058,14 +1062,18 @@ class Parser:
             self.raise_parser_error("Expected type annotation after ':'")
 
         value = None
+        operator = None
         if self.match(TokenType.ASSIGN):
+            operator = '='
             value = self.parse_expression()
             if value is None:
                 self.raise_parser_error("Expected value after '=' in typed declaration")
 
         has_semicolon = self.match(TokenType.SEMICOLON)
-        annotated = AnnotatedAssignment(target=target, type_annotation=type_annotation, value=value)
-        return ExpressionStatement(expression=annotated, has_semicolon=has_semicolon)
+        assignment = AssignmentExpression(
+            target=target, value=value, operator=operator, type_annotation=type_annotation
+        )
+        return ExpressionStatement(expression=assignment, has_semicolon=has_semicolon)
 
     def parse_final_declaration(self) -> FinalDeclaration:
         """Parse final variable declaration."""

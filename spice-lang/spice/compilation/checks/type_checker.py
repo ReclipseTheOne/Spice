@@ -12,7 +12,6 @@ from spice.compilation.symbol_table import (
     ClassSymbol,
 )
 from spice.parser.ast_nodes import (
-    AnnotatedAssignment,
     AssignmentExpression,
     AttributeExpression,
     CallExpression,
@@ -94,11 +93,9 @@ class TypeChecker(CompileTimeCheck):
         expr = node.expression
         if isinstance(expr, CallExpression):
             self._check_call_expression(expr)
-        elif isinstance(expr, AnnotatedAssignment):
-            pass
         elif isinstance(expr, AssignmentExpression):
-            # Inspect nested expressions if needed
-            self._visit_assignment(expr)
+            if expr.type_annotation is None:
+                self._visit_assignment(expr)
         self._current_node = None
 
     def _visit_assignment(self, node: AssignmentExpression):

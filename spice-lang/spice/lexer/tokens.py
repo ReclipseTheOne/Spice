@@ -93,6 +93,10 @@ class TokenType(Enum):
     DOT = auto()
     ARROW = auto()
 
+    # Annotations
+    AT = auto()
+    AT_LPAREN = auto()
+
     # Special
     NEWLINE = auto()
     INDENT = auto()

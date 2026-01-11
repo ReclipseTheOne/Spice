@@ -6,7 +6,6 @@ from spice.compilation.checks.compile_time_check import CompileTimeCheck
 from spice.compilation.spicefile import SpiceFile
 from spice.compilation.symbol_table import SymbolTable, VariableSymbol, FunctionSymbol, ClassSymbol, InterfaceSymbol
 from spice.parser.ast_nodes import (
-    AnnotatedAssignment,
     AssignmentExpression,
     ClassDeclaration,
     DataClassDeclaration,
@@ -180,11 +179,12 @@ class SymbolTableBuilder(CompileTimeCheck):
 
     def _visit_expression_statement(self, node: ExpressionStatement):
         expr = node.expression
-        if isinstance(expr, AnnotatedAssignment):
-            if isinstance(expr.target, IdentifierExpression):
-                self._add_variable(expr.target.name, expr.type_annotation, expr)
-        elif isinstance(expr, AssignmentExpression):
-            self._maybe_infer_assignment(expr)
+        if isinstance(expr, AssignmentExpression):
+            if expr.type_annotation is not None:
+                if isinstance(expr.target, IdentifierExpression):
+                    self._add_variable(expr.target.name, expr.type_annotation, expr)
+            else:
+                self._maybe_infer_assignment(expr)
 
     def _register_final_declaration(self, node: FinalDeclaration):
         target = node.target

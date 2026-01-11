@@ -4,7 +4,7 @@ from rites.rituals.printer import Printer
 def add_custom_styles(logger: Logger) -> None:
     printer: Printer = logger.printer
     # Add all needed custom printing styles here
-    
+
     printer.add_style("transform", "TFM", 255, 56, 252)
     printer.add_style("spice", "SPC", 250, 235, 235)
     printer.add_style("pipeline", "SPL", 56, 252, 201)
@@ -12,6 +12,7 @@ def add_custom_styles(logger: Logger) -> None:
 
 spice_compiler_log: Logger = get_tertiary_logger(log_name="Spice Compiler").dont_show_exit_message().should_print(True)
 pipeline_log: Logger = get_tertiary_logger(log_name="Spice Pipeline").dont_show_exit_message().should_print(True)
+pipeline_log.add_custom("cython", "PYC", 0, 255, 247)
 
 lexer_log: Logger = get_tertiary_logger(log_name="Lexer").dont_show_exit_message().should_print(False)
 parser_log: Logger = get_tertiary_logger(log_name="Parser").dont_show_exit_message().should_print(False)
