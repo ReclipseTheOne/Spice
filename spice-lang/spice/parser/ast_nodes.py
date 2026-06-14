@@ -1,7 +1,7 @@
 """AST node definitions for Spice language."""
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Any
+from typing import List, Optional, Any, Dict
 from abc import ABC, abstractmethod
 
 
@@ -34,13 +34,49 @@ class Module(ASTNode):
 
 
 @dataclass
+class Annotation(ASTNode):
+    """An annotation applied to a declaration.
+
+    `@name` is a runtime annotation (emitted as a Python decorator);
+    `@!name` is a compile-time annotation (processed by the compiler, then stripped).
+    """
+    name: str
+    args: List[ASTNode] = field(default_factory=list)         # positional argument expressions
+    kwargs: Dict[str, ASTNode] = field(default_factory=dict)  # keyword args: name -> expression node
+    retention: str = "runtime"                                # "runtime" | "compile_time"
+    is_call: bool = False                                     # @!foo() (True) vs @!foo (False); never collapsed
+    line: int = 0
+    column: int = 0
+
+    def accept(self, visitor):
+        return visitor.visit_Annotation(self)
+
+    def __str__(self) -> str:
+        suffix = "()" if self.is_call else ""
+        return f"Annotation(name={self.name}{suffix}, retention={self.retention}, args={self.args}, kwargs={self.kwargs})"
+
+
+@dataclass
+class RawCode(ASTNode):
+    """A block of directly injected code (either by tools / processors etc.)"""
+    code: str
+    line: int = 0
+    column: int = 0
+
+    def accept(self, visitor):
+        return visitor.visit_RawCode(self)
+
+    def __str__(self) -> str:
+        return f"RawCode({self.code!r})"
+
+
+@dataclass
 class InterfaceDeclaration(ASTNode):
     """Interface declaration node."""
     name: str
     methods: List['MethodSignature']
     base_interfaces: List[str] = field(default_factory=list)
-    compile_time_annotations: List[str] = field(default_factory=list)
-    runtime_annotations: List[str] = field(default_factory=list)
+    annotations: List["Annotation"] = field(default_factory=list)
     line: int = 0
     column: int = 0
 
@@ -60,8 +96,7 @@ class MethodSignature(ASTNode):
     name: str
     params: List['Parameter']
     return_type: Optional[str] = None
-    compile_time_annotations: List[str] = field(default_factory=list)
-    runtime_annotations: List[str] = field(default_factory=list)
+    annotations: List["Annotation"] = field(default_factory=list)
     line: int = 0
     column: int = 0
 
@@ -81,8 +116,7 @@ class Parameter(ASTNode):
     name: str
     type_annotation: Optional[str] = None
     default: Optional[Any] = None
-    compile_time_annotations: List[str] = field(default_factory=list)
-    runtime_annotations: List[str] = field(default_factory=list)
+    annotations: List["Annotation"] = field(default_factory=list)
 
     def accept(self, visitor):
         return visitor.visit_Parameter(self)
@@ -96,8 +130,7 @@ class TypeParameter(ASTNode):
     """Type parameter for generics: <T extends Bound>."""
     name: str
     bound: Optional[str] = None  # Upper bound constraint
-    compile_time_annotations: List[str] = field(default_factory=list)
-    runtime_annotations: List[str] = field(default_factory=list)
+    annotations: List["Annotation"] = field(default_factory=list)
     line: int = 0
     column: int = 0
 
@@ -120,8 +153,7 @@ class ClassDeclaration(ASTNode):
     is_abstract: bool = False
     is_final: bool = False
     compiler_flags: List[str] = field(default_factory=list)
-    compile_time_annotations: List[str] = field(default_factory=list)
-    runtime_annotations: List[str] = field(default_factory=list)
+    annotations: List["Annotation"] = field(default_factory=list)
     line: int = 0
     column: int = 0
 
@@ -147,8 +179,7 @@ class FunctionDeclaration(ASTNode):
     is_final: bool = False
     decorators: List[str] = field(default_factory=list)
     compiler_flags: List[str] = field(default_factory=list)
-    compile_time_annotations: List[str] = field(default_factory=list)
-    runtime_annotations: List[str] = field(default_factory=list)
+    annotations: List["Annotation"] = field(default_factory=list)
     line: int = 0
     column: int = 0
 
@@ -554,8 +585,7 @@ class DataClassDeclaration(ASTNode):
     body: List[ASTNode] = field(default_factory=list)  # Optional methods
     type_parameters: List['TypeParameter'] = field(default_factory=list)
     bases: List[str] = field(default_factory=list)
-    compile_time_annotations: List[str] = field(default_factory=list)
-    runtime_annotations: List[str] = field(default_factory=list)
+    annotations: List["Annotation"] = field(default_factory=list)
     line: int = 0
     column: int = 0
 
@@ -573,8 +603,7 @@ class EnumMember(ASTNode):
     """Enum member: RED or EARTH(a, b)"""
     name: str
     args: List[Expression] = field(default_factory=list)  # Constructor arguments
-    compile_time_annotations: List[str] = field(default_factory=list)
-    runtime_annotations: List[str] = field(default_factory=list)
+    annotations: List["Annotation"] = field(default_factory=list)
     line: int = 0
     column: int = 0
 
@@ -592,8 +621,7 @@ class EnumDeclaration(ASTNode):
     name: str
     members: List[EnumMember]
     body: List[ASTNode] = field(default_factory=list)  # Constructor and methods after semicolon
-    compile_time_annotations: List[str] = field(default_factory=list)
-    runtime_annotations: List[str] = field(default_factory=list)
+    annotations: List["Annotation"] = field(default_factory=list)
     line: int = 0
     column: int = 0
 

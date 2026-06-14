@@ -135,6 +135,7 @@ class Lexer:
         (r'\.', TokenType.DOT),
 
         # Annotations
+        (r'@!', TokenType.AT_BANG),     # @! compile-time; must precede @
         (r'@\(', TokenType.AT_LPAREN),  # Needs to be first
         (r'@', TokenType.AT),
 

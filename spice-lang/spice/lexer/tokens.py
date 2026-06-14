@@ -96,6 +96,7 @@ class TokenType(Enum):
     # Annotations
     AT = auto()
     AT_LPAREN = auto()
+    AT_BANG = auto()
 
     # Special
     NEWLINE = auto()

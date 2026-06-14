@@ -159,6 +159,38 @@ mySetVar: B = aRandomMethod(); // Will not crash
 // And many more planned <3
 ```
 
+## Feature Tracking
+
+Support for each language feature across the toolchain components:
+
+- **SPICE** — core compiler (Spice → Python, `emit=py`)
+- **SPICE-PYC** — Cython/`.pyx` → native executable backend (`emit=pyx`/`exe`)
+- **SPICE-LSP** — language server (diagnostics, completion, hover, go-to-definition)
+- **SPICE-VSC** — VSCode extension (syntax highlighting, snippets)
+
+Legend: ✅ supported &nbsp;·&nbsp; 🟡 partial (see notes) &nbsp;·&nbsp; 🚧 planned &nbsp;·&nbsp; — n/a
+
+| Feature                       | SPICE | SPICE-PYC | SPICE-LSP | SPICE-VSC |
+| ----------------------------- | :---: | :-------: | :-------: | :-------: |
+| Interfaces                    |  ✅   |   🟡 ¹    |    ✅     |    ✅     |
+| Abstract classes              |  ✅   |   🟡 ¹    |    ✅     |    ✅     |
+| Final classes / methods       |  ✅   |   🟡 ¹    |    ✅     |    ✅     |
+| Static methods                |  ✅   |    ✅     |    ✅     |    ✅     |
+| Inheritance (`extends`)       |  ✅   |    ✅     |    ✅     |    ✅     |
+| Interface impl (`implements`) |  ✅   |   🟡 ¹    |    ✅     |    ✅     |
+| Enums                         |  ✅   |    ✅     |    ✅     |    ✅     |
+| Data classes                  |  ✅   |    ✅     |    ✅     |    ✅     |
+| Generics                      |  ✅   |   🟡 ²    |    ✅     |    ✅     |
+| Simple constructors           |  ✅   |    ✅     |    ✅     |    ✅     |
+| `switch` / `case`             |  ✅   |    ✅     |    ✅     |    ✅     |
+| Runtime annotations (`@`)     |  ✅   |    ✅     |    ✅     |    ✅     |
+| Compile-time annotations (`@!`)|  ✅   |    ✅     |    ✅     |    ✅     |
+| Scientific notation           |  ✅   |    ✅     |    ✅     |    ✅     |
+| Strict typing / inference     |  ✅   |    ✅     |    ✅     |    —      |
+
+¹ Type-level construct — emitted for the Python target but stripped from native (`.pyx`) builds, which keep only the runtime behaviour.
+² Generics are type-erased in native builds (type parameters dropped from `cdef class`).
+
 ## Development
 
 ### Testing

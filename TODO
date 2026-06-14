@@ -1,5 +1,11 @@
- - Multiline support... (why does it die on me)
- - Fix dictionaries.
- - Fix imports getting killed on indentation (on translation)
+[PROJECT]
  - Complete documentation on every single part of the code for the sake of my life
  - Less spaghet code
+
+[BUILD SYSTEM - built on top of `spice.compilation` / `spice.compilation.pipeline` - should have >= build.gradle level of control for buildflow]
+ - Lift LOOKUP_PATHS / RESOLVED_FILES off module globals onto the context/Project object (the one source-of-truth obj)
+ - spice.compilation.task primitive: a task is (inputs, outputs, action, pure) — inputs/outputs needed or you get ordering without caching
+ - Caching = total-state hash taken *before* the task; same pre-state hash across runs -> skip. skip == replay cached post-state (snapshot SpiceFile)
+ - `pure` contract declared at task def: gates skip/cache + parallel scheduling. cacheable = pure AND all ancestors pure (purity is transitive)
+ - Plugins (1.0+) = event bus: push the live SpiceFile at each pipeline stage to every subscribed entry point
+ - build.spice.py / build.spice.spc - the name is not hard coded, its just convention / default. CLI would look for build.spice.spc -> main.spc for entry points.

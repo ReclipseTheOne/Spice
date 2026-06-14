@@ -15,21 +15,16 @@ import sys
 import sysconfig
 import site
 
-ALL_IMPORTED_PATHS: list[Path] = []
+# Per-build state. Reset at each top-level walk() so repeated builds in one
+# process (e.g. a build script compiling several targets) don't leak state.
 LOOKUP_PATHS: list[Path] = []
+RESOLVED_FILES: dict[Path, SpiceFile] = {}   # resolved .spc path -> shared SpiceFile (one node per module)
 
 
-def add_and_check_import_path(path: Path):
-    global ALL_IMPORTED_PATHS
-
-    if path.resolve() in ALL_IMPORTED_PATHS:
-        exception: str = "Circular Import.\nAll current file paths: \n"
-        for path in ALL_IMPORTED_PATHS:
-            exception += (f" - {path}")
-
-        raise ImportError(exception)
-
-    ALL_IMPORTED_PATHS.append(path.resolve())
+def _reset_build_state():
+    """Clear the per-build import caches. Called at the root of walk()."""
+    LOOKUP_PATHS.clear()
+    RESOLVED_FILES.clear()
 
 
 def add_and_check_lookup_path(path: Path):
@@ -79,7 +74,10 @@ class SpicePipeline:
 
         for path in lookup:
             if path.exists():
-                for stmt in left_to_resolve:
+                # Snapshot: the body removes resolved statements from
+                # left_to_resolve, so iterating it directly would skip every
+                # second import found under the same lookup path.
+                for stmt in list(left_to_resolve):
                     found: bool = False
                     relative_path: str = path.resolve().as_posix()
 
@@ -100,10 +98,16 @@ class SpicePipeline:
                         if (flags.verbose):
                             pipeline_log.custom("pipeline", f"Checking possible .spc path: {possible_spc_path.resolve().as_posix()}")
                         if possible_spc_path.is_file() or (possible_spc_path / "__main__.spc").is_file():
-                            add_and_check_import_path(possible_spc_path)
                             left_to_resolve.remove(stmt)
 
-                            imported_file = SpiceFile(possible_spc_path)
+                            # Share one SpiceFile per module so diamond imports
+                            # (A->B->D, A->C->D) resolve to the same node instead
+                            # of being rebuilt or flagged as a false cycle.
+                            resolved = possible_spc_path.resolve()
+                            imported_file = RESOLVED_FILES.get(resolved)
+                            if imported_file is None:
+                                imported_file = SpiceFile(possible_spc_path)
+                                RESOLVED_FILES[resolved] = imported_file
                             file.spc_imports.append(imported_file)
 
                             found = True
@@ -116,9 +120,9 @@ class SpicePipeline:
                             break
 
                         if possible_py_path.is_file():
-                            add_and_check_import_path(possible_py_path)
-
-                            file.py_imports.append(possible_py_path)
+                            resolved = possible_py_path.resolve()
+                            if resolved not in (p.resolve() for p in file.py_imports):
+                                file.py_imports.append(possible_py_path)
                             left_to_resolve.remove(stmt)
                             break
 
@@ -147,7 +151,7 @@ class SpicePipeline:
             emit=flags.emit,
             enable_runtime_final_checks=flags.runtime_checks
         )
-        output_code = transformer.transform(file.ast)
+        output_code = transformer.transform(file.ast, extra_imports=file.extra_imports)
 
         # Determine output path based on emit mode
         output_path = file.get_output_path(flags.emit)
@@ -164,11 +168,17 @@ class SpicePipeline:
             compile_to_executable(output_path, flags)
 
     @staticmethod
-    def walk(root: Path, spc_file: Optional[SpiceFile], flags: CLI_FLAGS) -> SpiceFile:
-        """Recursively populate and transform the import tree for the current Spice File"""
+    def walk(root: Path, spc_file: Optional[SpiceFile], flags: CLI_FLAGS, _stack: Optional[list[Path]] = None) -> SpiceFile:
+        """Recursively populate the import graph for the current Spice File."""
 
         if spc_file is None:
+            # Top-level entry: start from a clean per-build state.
+            _reset_build_state()
             spc_file = SpiceFile(root)
+            RESOLVED_FILES[spc_file.path.resolve()] = spc_file
+
+        if _stack is None:
+            _stack = []
 
         add_and_check_lookup_path(root)
         add_and_check_lookup_path(Path.cwd())
@@ -186,18 +196,38 @@ class SpicePipeline:
         SpicePipeline.parse(spc_file, flags)
         SpicePipeline.resolve_imports(spc_file, LOOKUP_PATHS, flags)
 
-        for imported in spc_file.spc_imports:
-            pipeline_log.custom("pipeline", f"Walking imported file: {imported.path.resolve().as_posix()}")
-            SpicePipeline.walk(root, imported, flags)
+        here = spc_file.path.resolve()
+        _stack.append(here)
 
+        for imported in spc_file.spc_imports:
+            target = imported.path.resolve()
+
+            if target in _stack:
+                # `target` is an ancestor on the current path -> cycle.
+                cycle = _stack[_stack.index(target):] + [target]
+                raise ImportError(
+                    "Circular import detected:\n" + " ->\n".join(f" - {p.as_posix()}" for p in cycle)
+                )
+
+            if imported.tokens:
+                # Already walked -> don't rebuild it.
+                continue
+
+            pipeline_log.custom("pipeline", f"Walking imported file: {target.as_posix()}")
+            SpicePipeline.walk(root, imported, flags, _stack)
+
+        _stack.pop()
         return spc_file
 
     @staticmethod
-    def verify_and_write(file: SpiceFile, flags: CLI_FLAGS):
-        """Run compile time checks on all the Spice File Tree and write the tree to disk"""
+    def _run_analysis(file: SpiceFile, flags: CLI_FLAGS, fatal: bool):
+        """Run symbol-table build + all checks over the current tree.
 
-        pipeline_log.custom("pipeline", f"Verifying file: {file.path.resolve().as_posix()}")
-
+        When `fatal` is False diagnostics are collected but never abort,
+        so annotation processors / mutators get a fully-analyzed tree and a
+        chance to fix would-be errors. When True the checks are authoritative
+        and gate compilation.
+        """
         from spice.compilation.checks import (
             FinalChecker,
             InterfaceChecker,
@@ -206,46 +236,73 @@ class SpicePipeline:
             TypeChecker,
         )
 
-        symbol_builder = SymbolTableBuilder()
-        symbol_builder.check(file)
+        SymbolTableBuilder().check(file)
 
         overload_resolver = MethodOverloadResolver()
-        if not overload_resolver.check(file):
+        if not overload_resolver.check(file) and fatal:
             exception = "Invalid method overloads detected:\n"
             for error in overload_resolver.errors:
                 exception += f" - {error}\n"
             raise SpiceCompileTimeError(exception)
-        else:
-            pipeline_log.custom("pipeline", "No invalid method overloads present. Overloads added successfully.")
 
         type_checker = TypeChecker()
-        if not type_checker.check(file):
+        if not type_checker.check(file) and fatal:
             exception = "Type checking failed:\n"
             for error in type_checker.errors:
                 exception += f" - {error}\n"
             raise SpiceCompileTimeError(exception)
-        else:
-            pipeline_log.custom("pipeline", "No type errors present.")
 
         interface_checker = InterfaceChecker()
-        if not interface_checker.check(file):
+        if not interface_checker.check(file) and fatal:
             exception = "Interface implementation errors:\n"
             for error in interface_checker.errors:
                 exception += f" - {error}\n"
             raise SpiceCompileTimeError(exception)
-        else:
-            pipeline_log.custom("pipeline", "All interfaces implemented correctly.")
 
         final_checker = FinalChecker()
-        if (not final_checker.check(file) and not flags.no_final_check):
+        if not final_checker.check(file) and fatal and not flags.no_final_check:
             exception = "Instance(s) declared final found reassigned: \n"
             for error in final_checker.errors:
                 exception += f" - {error}"
             raise SpiceCompileTimeError(exception)
+
+    @staticmethod
+    def verify_and_write(file: SpiceFile, flags: CLI_FLAGS, _done: Optional[set] = None):
+        """Build -> Lower (annotations/tools) -> Rebuild -> transform, for the whole tree.
+
+        `_done` tracks already-processed files
+        """
+
+        if _done is None:
+            _done = set()
+
+        here = file.path.resolve()
+        if here in _done:
+            return
+        _done.add(here)
+
+        pipeline_log.custom("pipeline", f"Verifying file: {here.as_posix()}")
+
+        from spice.compilation.checks import AnnotationStage
+
+        # Build pass: full analysis, non-fatal. Gives tools a resolved tree + early diagnostics.
+        SpicePipeline._run_analysis(file, flags, fatal=False)
+
+        # Lower pass: run compile-time annotation processors / mutators (fatal on misuse).
+        annotation_stage = AnnotationStage()
+        if not annotation_stage.check(file):
+            exception = "Annotation processing failed:\n"
+            for error in annotation_stage.errors:
+                exception += f" - {error}\n"
+            raise SpiceCompileTimeError(exception)
         else:
-            pipeline_log.custom("pipeline", "No final violations found.")
+            pipeline_log.custom("pipeline", "Annotations processed successfully.")
+
+        # Rebuild pass: authoritative analysis on the lowered tree (gates compilation).
+        SpicePipeline._run_analysis(file, flags, fatal=True)
+        pipeline_log.custom("pipeline", "All compile-time checks passed.")
 
         SpicePipeline.transform_and_write(file, flags)
 
         for imported in file.spc_imports:
-            SpicePipeline.verify_and_write(imported, flags)
+            SpicePipeline.verify_and_write(imported, flags, _done)

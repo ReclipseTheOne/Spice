@@ -79,10 +79,13 @@ class Transformer:
 
         return self.CYTHON_TYPE_MAP.get(base_type, spice_type)
 
-    def transform(self, ast: Module) -> str:
+    def transform(self, ast: Module, extra_imports=None) -> str:
         """Transform AST to Python or Cython code based on emit mode."""
         target = "Cython" if self.is_cython else "Python"
         transformer_log.info(f"Starting transformation of AST to {target} code")
+
+        # Top-level imports requested by tools/annotation processors (via SpiceFile.ensure_import)
+        self._extra_imports = set(extra_imports or [])
 
         if self.is_cython:
             self.output = [
@@ -194,7 +197,12 @@ class Transformer:
             else:
                 self.output.append("from enum import Enum\n")
 
-        needs_extra_line = has_dispatch or has_dataclass or has_enum
+        # Tool-requested imports (from SpiceFile.ensure_import), deduped + ordered
+        extra_imports = getattr(self, "_extra_imports", set())
+        for imp in sorted(extra_imports):
+            self.output.append(f"{imp}\n")
+
+        needs_extra_line = has_dispatch or has_dataclass or has_enum or bool(extra_imports)
         if not self.is_cython:
             needs_extra_line = needs_extra_line or has_interfaces or has_abstract or has_final or has_generics
         if needs_extra_line:
@@ -513,6 +521,11 @@ class Transformer:
 
         # Add decorators
         decorators = []
+        # Runtime annotations come first, in source order (compile-time ones are
+        # already stripped by the annotation stage before transformation).
+        for ann in getattr(node, "annotations", []):
+            if ann.retention == "runtime":
+                decorators.append(self._annotation_to_decorator(ann))
         if not self.is_cython:
             if node.is_static:
                 decorators.append("@staticmethod")
@@ -765,6 +778,46 @@ class Transformer:
         arg_str = ", ".join(args)
         self.output.append(f"{callee_str}({arg_str})")
 
+
+    def visit_RawCode(self, node):
+        """Emit verbatim target-language code (tool injection escape hatch)."""
+        lines = node.code.split("\n")
+        for line in lines:
+            if line.strip() == "":
+                self.output.append("\n")
+            else:
+                self.output.append(self._indent(f"{line}\n"))
+
+    def _render_expr(self, node) -> str:
+        """Render an expression node to a source string without keeping it in the output."""
+        before = len(self.output)
+        self.visit(node)
+        length = len(self.output) - before
+        rendered = ''.join(self.output[-length:]) if length else ""
+        if length:
+            self.output = self.output[:-length]
+        return rendered
+
+    def _annotation_to_decorator(self, ann) -> str:
+        """Render a runtime annotation as a Python decorator string."""
+        if not ann.is_call:
+            return f"@{ann.name}"
+        parts = [self._render_expr(arg) for arg in ann.args]
+        parts.extend(f"{key}={self._render_expr(value)}" for key, value in ann.kwargs.items())
+        return f"@{ann.name}({', '.join(parts)})"
+
+    def visit_ArgumentExpression(self, node):
+        """Visit a call argument, rendering `name=value` for keyword args."""
+        output_before = len(self.output)
+        self.visit(node.value)
+        value_len = len(self.output) - output_before
+        value_str = ''.join(self.output[-value_len:])
+        self.output = self.output[:-value_len]
+
+        if node.name is not None:
+            self.output.append(f"{node.name}={value_str}")
+        else:
+            self.output.append(value_str)
 
     def visit_ReturnStatement(self, node: ReturnStatement):
         """Visit return statement node."""

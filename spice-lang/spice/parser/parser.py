@@ -8,7 +8,8 @@ from spice.parser.ast_nodes import (
     IfStatement, ForStatement, WhileStatement, SwitchStatement, CaseClause,
     RaiseStatement, ImportStatement, FinalDeclaration, FunctionDeclaration,
     IdentifierExpression, AssignmentExpression,
-    TypeParameter, DataClassDeclaration, EnumMember, EnumDeclaration
+    TypeParameter, DataClassDeclaration, EnumMember, EnumDeclaration,
+    Annotation, AttributeExpression, CallExpression, ArgumentExpression
 )
 from spice.errors import SpiceError, ParserError
 
@@ -589,6 +590,7 @@ class Parser:
 
             # Parse class member
             parser_log.info("Parsing class member")
+            member_annotations = self.parse_annotations() if self.check(TokenType.AT, TokenType.AT_BANG) else []
             member_flags = self._consume_compiler_flags(
                 [TokenType.STATIC, TokenType.ABSTRACT, TokenType.FINAL, TokenType.DEF]
             )
@@ -596,6 +598,8 @@ class Parser:
             if stmt:
                 if member_flags and not isinstance(stmt, FunctionDeclaration):
                     self.raise_parser_error("Compiler flags can only be applied to methods inside classes")
+                if member_annotations:
+                    self._attach_annotations(stmt, member_annotations)
                 parser_log.info(f"Added class member: {type(stmt).__name__}")
                 body.append(stmt)
             elif member_flags:
@@ -859,7 +863,77 @@ class Parser:
     ############## EXPRESSIONS ###############
     ##########################################
 
+    def parse_annotations(self) -> List[Annotation]:
+        """Consume leading annotation prefixes: `@name` (runtime) and `@!name` (compile-time).
+
+        The payload after the marker is parsed as a postfix/call expression
+        (so `@!foo`, `@!foo(args)`, `@app.route("/x")` all work), then
+        destructured into an `Annotation`. `@!foo` and `@!foo()` are kept distinct.
+        """
+        annotations: List[Annotation] = []
+        while self.check(TokenType.AT, TokenType.AT_BANG):
+            marker = self.advance()
+            retention = "compile_time" if marker.type == TokenType.AT_BANG else "runtime"
+
+            payload = self.expr_parser.parse_postfix()
+            if payload is None:
+                self.raise_parser_error("Expected an annotation name after '@'")
+
+            annotations.append(
+                self._annotation_from_payload(payload, retention, marker.line, marker.column)
+            )
+            self.skip_newlines()
+        return annotations
+
+    def _annotation_from_payload(self, payload, retention: str, line: int, column: int) -> Annotation:
+        is_call = isinstance(payload, CallExpression)
+        callee = payload.callee if is_call else payload
+        name = self._dotted_name(callee)
+
+        args: List[Any] = []
+        kwargs: dict = {}
+        if is_call:
+            for arg in payload.arguments:
+                if isinstance(arg, ArgumentExpression) and arg.name is not None:
+                    kwargs[arg.name] = arg.value
+                else:
+                    args.append(arg)
+
+        if retention == "compile_time" and "." in name:
+            self.raise_parser_error(
+                f"Compile-time annotation '@!{name}' cannot be dotted; expected a registered name"
+            )
+
+        return Annotation(
+            name=name, args=args, kwargs=kwargs,
+            retention=retention, is_call=is_call, line=line, column=column,
+        )
+
+    def _dotted_name(self, node) -> str:
+        if isinstance(node, IdentifierExpression):
+            return node.name
+        if isinstance(node, AttributeExpression):
+            return f"{self._dotted_name(node.object)}.{node.attribute}"
+        self.raise_parser_error("Annotation must be a name or call, e.g. '@foo' or '@!foo(args)'")
+
+    def _attach_annotations(self, node, annotations: List[Annotation]) -> None:
+        if node is None or not hasattr(node, "annotations"):
+            self.raise_parser_error("Annotations can only precede declarations")
+        node.annotations = list(annotations)
+
     def parse_statement(self, context="general"):
+        """Parse a statement, consuming any leading annotations first."""
+        annotations: List[Annotation] = []
+        if self.check(TokenType.AT, TokenType.AT_BANG):
+            annotations = self.parse_annotations()
+
+        node = self._parse_statement_core(context)
+
+        if annotations:
+            self._attach_annotations(node, annotations)
+        return node
+
+    def _parse_statement_core(self, context="general"):
         """Parse a statement."""
         parser_log.info(f"Parsing statement at token: {self.peek().type.name}")
 
