@@ -3,8 +3,8 @@ requires = ["setuptools>=61", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "spice"
-version = "0.2.0"
+name = "spice-lang"
+version = "0.2.1"
 description = "Python but with all the spice"
 authors = [
     { name = "Reclipse" }
