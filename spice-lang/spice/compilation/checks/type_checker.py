@@ -152,10 +152,20 @@ class TypeChecker(CompileTimeCheck):
         for arg_type, param in zip(arg_types, params):
             if param.type_annotation is None or arg_type is None:
                 return False
-            if arg_type != param.type_annotation:
+            if not self._is_assignable(arg_type, param.type_annotation):
                 return False
 
         return True
+
+    def _is_assignable(self, arg_type: str, param_type: str) -> bool:
+        """An argument is assignable if its type is the parameter type or a
+        subtype of it (the parameter type is in the argument's inheritance tree).
+        """
+        if arg_type == param_type:
+            return True
+        if self.table is None:
+            return False
+        return param_type in self.table.ancestors(arg_type)
 
     def _resolve_callee(self, node: CallExpression) -> Optional[Tuple[List[FunctionSymbol], Optional[str], Optional[str]]]:
         """Resolve callee to (functions, owner_type, variable_name)."""
@@ -208,8 +218,8 @@ class TypeChecker(CompileTimeCheck):
                     # Infer the type from the argument
                     inferred[param_type] = arg_type
             else:
-                # Regular type - must match exactly
-                if arg_type != param_type:
+                # Regular type - arg must be the param type or a subtype of it.
+                if not self._is_assignable(arg_type, param_type):
                     return None
 
         # Return only the newly inferred bindings (not existing ones)
@@ -298,9 +308,14 @@ class TypeChecker(CompileTimeCheck):
         return None
 
     def _literal_to_type(self, literal: LiteralExpression) -> Optional[str]:
+        if literal.literal_type == "number":
+            # A number is a float as soon as it has a fractional part or an
+            # exponent ('.' / 'e' / 'E'); otherwise it is an int.
+            text = str(literal.value)
+            return "float" if any(c in text for c in ".eE") else "int"
+
         mapping = {
             "string": "str",
-            "number": "int",
             "boolean": "bool",
         }
         return mapping.get(literal.literal_type)

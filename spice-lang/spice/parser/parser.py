@@ -425,9 +425,13 @@ class Parser:
             name = self.consume(TokenType.IDENTIFIER, "Expected type parameter name").value
             parser_log.info(f"Parsing type parameter '{name}'")
 
+            # A bound accepts either keyword interchangeably: `T extends C` and
+            # `T implements C` mean the same thing - C must be an ancestor of the
+            # concrete type bound to T (anywhere in its inheritance tree). The
+            # author picks whichever reads right for what C happens to be.
             bound = None
-            if self.match(TokenType.EXTENDS):
-                bound = self.consume(TokenType.IDENTIFIER, "Expected bound type after 'extends'").value
+            if self.match(TokenType.EXTENDS) or self.match(TokenType.IMPLEMENTS):
+                bound = self.consume(TokenType.IDENTIFIER, "Expected bound type after 'extends'/'implements'").value
                 parser_log.info(f"Type parameter '{name}' has bound: {bound}")
 
             params.append(TypeParameter(
@@ -658,8 +662,9 @@ class Parser:
             body = []
             if is_abstract or is_interface:
                 parser_log.info(f"Registered abstract/interface method '{name}'")
-                self.consume(TokenType.SEMICOLON, "Expected ';' after abstract method signature")
-                body.append(PassStatement(has_semicolon=True))
+                has_semicolon = self.match(TokenType.SEMICOLON)
+                body.append(PassStatement(has_semicolon=has_semicolon))
+
                 # Abstract methods end here - no body expected
             else:
                 # Concrete methods need a body
@@ -1196,7 +1201,13 @@ class Parser:
         then_body = self.parse_block()
 
         else_body = []
-        if self.match(TokenType.ELSE):
+        if self.check(TokenType.ELIF):
+            # `elif cond { ... }` is sugar for `else { if cond { ... } }`: consume
+            # the keyword and parse the rest of the chain as a nested if.
+            # TODO: this might be ugly tho
+            self.advance()
+            else_body = [self.parse_if_statement()]
+        elif self.match(TokenType.ELSE):
             if self.check(TokenType.IF):
                 # else if - parse as a single statement
                 else_body = [self.parse_simple_statement()]

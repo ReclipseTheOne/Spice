@@ -9,13 +9,12 @@ from pathlib import Path
 
 import pytest
 
-from spice.cli import CLI_FLAGS
-from spice.compilation import SpicePipeline
+from spice.compilation import BuildFlags, SpicePipeline
 from spice.errors import ImportError as SpiceImportError
 
 
-def _flags(entry: Path) -> CLI_FLAGS:
-    return CLI_FLAGS(source=entry, emit="py")
+def _flags(entry: Path) -> BuildFlags:
+    return BuildFlags(source=entry, emit="py")
 
 
 def _fn(name: str) -> str:

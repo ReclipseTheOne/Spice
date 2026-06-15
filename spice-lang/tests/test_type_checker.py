@@ -81,6 +81,50 @@ alias = value;
             errors,
         )
 
+    def test_subtype_argument_is_accepted(self):
+        """A concrete type is accepted where its interface/base is expected."""
+        source = """interface Drawable {
+    def render() -> str
+}
+
+class Circle implements Drawable {
+    def Circle() {
+        self.r = 1.0
+    }
+    def render() -> str {
+        return "circle";
+    }
+}
+
+class Scene {
+    def Scene() {
+        self.items: list = [];
+    }
+    def add(shape: Drawable) -> None {
+        self.items.append(shape);
+    }
+}
+
+s = Scene();
+s.add(Circle());
+"""
+        result, errors = self.run_type_check(source)
+        safe_assert(result, "A Circle should be assignable to a Drawable parameter", errors)
+
+    def test_float_literal_matches_float_parameter(self):
+        """A float literal must type as float, not int (regression)."""
+        source = """class Button {
+    def resize(factor: float) -> None {
+        return;
+    }
+}
+
+b = Button();
+b.resize(2.0);
+"""
+        result, errors = self.run_type_check(source)
+        safe_assert(result, "Float literal should satisfy a float parameter", errors)
+
     def test_constructor_assignment_infers_type(self):
         """Constructors should provide type information automatically."""
         source = """class B {

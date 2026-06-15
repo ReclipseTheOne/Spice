@@ -264,7 +264,7 @@ Spice/
 
    ```bash
    cd examples
-   spice shapes.spc
+   spicy 
    ```
 
 2. Read the language documentation

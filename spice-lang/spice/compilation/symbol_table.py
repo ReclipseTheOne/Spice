@@ -76,3 +76,29 @@ class SymbolTable:
             scope = ScopeSymbol(name=name, parent=parent)
             self.scopes[name] = scope
         return scope
+
+    def ancestors(self, name: str, _seen: Optional[set] = None) -> set:
+        """All type names reachable from `name` via extends/implements links.
+
+        Walks class bases + implemented interfaces and interface base interfaces
+        transitively. Does not include `name` itself.
+        """
+        if _seen is None:
+            _seen = set()
+
+        class_symbol = self.classes.get(name)
+        if class_symbol is not None:
+            node = class_symbol.node
+            for base in list(getattr(node, "bases", [])) + list(getattr(node, "interfaces", [])):
+                if base not in _seen:
+                    _seen.add(base)
+                    self.ancestors(base, _seen)
+
+        interface_symbol = self.interfaces.get(name)
+        if interface_symbol is not None:
+            for base in getattr(interface_symbol.node, "base_interfaces", []):
+                if base not in _seen:
+                    _seen.add(base)
+                    self.ancestors(base, _seen)
+
+        return _seen

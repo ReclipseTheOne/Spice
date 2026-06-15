@@ -45,7 +45,11 @@ htmlcov/
 !spice-lang/spice/**/*.py
 !spice-lang/tests/**/*.py
 !setup.py
+
+!**/build.spice.py
 examples/*.py
+
+examples/projects/*/build/
 
 # OS
 .DS_Store

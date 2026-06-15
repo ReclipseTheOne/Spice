@@ -5,7 +5,7 @@ from spice.transformer import Transformer
 from spice.errors import ImportError, SpiceCompileTimeError
 
 from pathlib import Path
-from spice.cli import CLI_FLAGS
+from spice.compilation.build_flags import BuildFlags
 
 from spice.printils import pipeline_log
 
@@ -39,7 +39,7 @@ def add_and_check_lookup_path(path: Path):
 
 class SpicePipeline:
     @staticmethod
-    def tokenize(file: SpiceFile, flags: CLI_FLAGS):
+    def tokenize(file: SpiceFile, flags: BuildFlags):
         """Tokenize and verify lexically the current Spice File"""
 
         pipeline_log.custom("pipeline", f"Tokenizing file: {file.path.resolve().as_posix()}")
@@ -48,7 +48,7 @@ class SpicePipeline:
         file.tokens = lexer.tokenize(file.source)
 
     @staticmethod
-    def parse(file: SpiceFile, flags: CLI_FLAGS):
+    def parse(file: SpiceFile, flags: BuildFlags):
         """Parse and verify syntactically the current Spice File, generating the file's AST"""
 
         pipeline_log.custom("pipeline", f"Parsing file: {file.path.resolve().as_posix()}")
@@ -57,7 +57,7 @@ class SpicePipeline:
         file.ast = parser.parse(file.tokens)
 
     @staticmethod
-    def resolve_imports(file: SpiceFile, lookup: list[Path], flags: CLI_FLAGS):
+    def resolve_imports(file: SpiceFile, lookup: list[Path], flags: BuildFlags):
         """Resolve the imports for the current Spice File"""
 
         pipeline_log.custom("pipeline", f"Resolving imports for file: {file.path.resolve().as_posix()}")
@@ -142,7 +142,7 @@ class SpicePipeline:
             pipeline_log.custom("pipeline", msg)
 
     @staticmethod
-    def transform_and_write(file: SpiceFile, flags: CLI_FLAGS):
+    def transform_and_write(file: SpiceFile, flags: BuildFlags):
         """Transform the AST of the current Spice File into target code and write it to disk."""
         target = "Cython" if flags.emit in ("pyx", "exe") else "Python"
         pipeline_log.custom("pipeline", f"Transforming file to {target}: {file.path.resolve().as_posix()}")
@@ -168,7 +168,7 @@ class SpicePipeline:
             compile_to_executable(output_path, flags)
 
     @staticmethod
-    def walk(root: Path, spc_file: Optional[SpiceFile], flags: CLI_FLAGS, _stack: Optional[list[Path]] = None) -> SpiceFile:
+    def walk(root: Path, spc_file: Optional[SpiceFile], flags: BuildFlags, _stack: Optional[list[Path]] = None) -> SpiceFile:
         """Recursively populate the import graph for the current Spice File."""
 
         if spc_file is None:
@@ -181,6 +181,7 @@ class SpicePipeline:
             _stack = []
 
         add_and_check_lookup_path(root)
+        add_and_check_lookup_path(spc_file.path.parent)
         add_and_check_lookup_path(Path.cwd())
         add_and_check_lookup_path(Path(sysconfig.get_path('purelib')))
         add_and_check_lookup_path(Path(sysconfig.get_path('platlib')))
@@ -220,7 +221,7 @@ class SpicePipeline:
         return spc_file
 
     @staticmethod
-    def _run_analysis(file: SpiceFile, flags: CLI_FLAGS, fatal: bool):
+    def _run_analysis(file: SpiceFile, flags: BuildFlags, fatal: bool):
         """Run symbol-table build + all checks over the current tree.
 
         When `fatal` is False diagnostics are collected but never abort,
@@ -230,6 +231,7 @@ class SpicePipeline:
         """
         from spice.compilation.checks import (
             FinalChecker,
+            GenericBoundChecker,
             InterfaceChecker,
             MethodOverloadResolver,
             SymbolTableBuilder,
@@ -259,15 +261,22 @@ class SpicePipeline:
                 exception += f" - {error}\n"
             raise SpiceCompileTimeError(exception)
 
+        bound_checker = GenericBoundChecker()
+        if not bound_checker.check(file) and fatal:
+            exception = "Generic bound errors:\n"
+            for error in bound_checker.errors:
+                exception += f" - {error}\n"
+            raise SpiceCompileTimeError(exception)
+
         final_checker = FinalChecker()
-        if not final_checker.check(file) and fatal and not flags.no_final_check:
+        if not final_checker.check(file) and fatal:
             exception = "Instance(s) declared final found reassigned: \n"
             for error in final_checker.errors:
                 exception += f" - {error}"
             raise SpiceCompileTimeError(exception)
 
     @staticmethod
-    def verify_and_write(file: SpiceFile, flags: CLI_FLAGS, _done: Optional[set] = None):
+    def verify_and_write(file: SpiceFile, flags: BuildFlags, _done: Optional[set] = None):
         """Build -> Lower (annotations/tools) -> Rebuild -> transform, for the whole tree.
 
         `_done` tracks already-processed files

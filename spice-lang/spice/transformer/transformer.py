@@ -158,6 +158,10 @@ class Transformer:
                         break
 
         if not self.is_cython:
+            # Must be the first import: makes all annotations lazy (PEP 563)
+            # eg. `def func(x: MyClass) -> MyClass:` works even if MyClass is defined later in the file
+            self.output.append("from __future__ import annotations\n")
+
             if has_interfaces or has_abstract:
                 transformer_log.info("Adding import for ABC and abstractmethod")
                 self.output.append("from abc import ABC, abstractmethod\n")
@@ -274,9 +278,11 @@ class Transformer:
 
         transformer_log.custom("transform", f"Transforming interface '{node.name}' with {len(node.methods)} methods")
 
-        extensions = f", {', '.join(node.base_interfaces)}" if node.base_interfaces else ""
-
-        self.output.append(f"class {node.name}(Protocol{extensions}):\n")
+        # Protocol must come last in the bases: subclassing another Protocol is
+        # spelled `class Child(Parent, Protocol)`. Putting Protocol first breaks
+        # the MRO when a base interface is itself a Protocol.
+        bases = list(node.base_interfaces) + ["Protocol"]
+        self.output.append(f"class {node.name}({', '.join(bases)}):\n")
         self.indent_level += 1
 
         self.output.append(self._indent(f'"""Interface for {node.name}."""\n'))
@@ -833,26 +839,25 @@ class Transformer:
             self.output.append(self._indent("return\n"))
 
 
-    def visit_IfStatement(self, node: IfStatement):
+    def visit_IfStatement(self, node: IfStatement, keyword: str = "if"):
         """Visit if statement node."""
         transformer_log.custom("transform", "Transforming if statement")
-        self.output.append(self._indent(f"if "))
-        output_before = len(self.output)
-        self.visit(node.condition)
-        cond_len = len(self.output) - output_before
-        cond_str = ''.join(self.output[-cond_len:])
-        self.output = self.output[:-cond_len]
-        self.output.append(f"{cond_str}:\n")
+        cond_str = self.expr_to_str(node.condition)
+        self.output.append(self._indent(f"{keyword} {cond_str}:\n"))
         self.indent_level += 1
         for stmt in node.then_body:
             self.visit(stmt)
         self.indent_level -= 1
         if node.else_body:
-            self.output.append(self._indent("else:\n"))
-            self.indent_level += 1
-            for stmt in node.else_body:
-                self.visit(stmt)
-            self.indent_level -= 1
+            # Collapse a lone `else { if ... }` into an `elif`.
+            if len(node.else_body) == 1 and isinstance(node.else_body[0], IfStatement):
+                self.visit_IfStatement(node.else_body[0], keyword="elif")
+            else:
+                self.output.append(self._indent("else:\n"))
+                self.indent_level += 1
+                for stmt in node.else_body:
+                    self.visit(stmt)
+                self.indent_level -= 1
 
 
     def visit_ForStatement(self, node: ForStatement):
@@ -860,8 +865,14 @@ class Transformer:
         transformer_log.custom("transform", "Transforming for statement")
 
         self.output.append(self._indent("for "))
-        # Transform the target expression to string
-        target_str = self.expr_to_str(node.target)
+        # The target is the whole `x in iterable` clause, parsed as a binary
+        # `in` expression. Emit it unwrapped (`for x in y:`), since binary
+        # expressions are otherwise parenthesised for precedence.
+        target = node.target
+        if isinstance(target, BinaryExpression) and target.operator == "in":
+            target_str = f"{self.expr_to_str(target.left)} in {self.expr_to_str(target.right)}"
+        else:
+            target_str = self.expr_to_str(target)
         self.output.append(f"{target_str}:\n")
         self.indent_level += 1
         for stmt in node.body:
@@ -889,17 +900,14 @@ class Transformer:
         """Visit switch statement node."""
         transformer_log.custom("transform", "Transforming switch statement (using if-elif-else)")
         # Python doesn't have switch, so use if-elif-else
+        subject_str = self.expr_to_str(node.expression)
         for i, case in enumerate(node.cases):
             if i == 0:
                 self.output.append(self._indent("if "))
             else:
                 self.output.append(self._indent("elif "))
-            output_before = len(self.output)
-            self.visit(case.value)
-            val_len = len(self.output) - output_before
-            val_str = ''.join(self.output[-val_len:])
-            self.output = self.output[:-val_len]
-            self.output.append(f"{node.expression} == {val_str}:")
+            val_str = self.expr_to_str(case.value)
+            self.output.append(f"{subject_str} == {val_str}:")
             self._new_line()
             self.indent_level += 1
             for stmt in case.body:
@@ -933,9 +941,13 @@ class Transformer:
 
     def visit_BinaryExpression(self, node: BinaryExpression):
         """Visit binary expression node."""
+        # Wrap in parentheses so the original grouping is preserved
+        #
+        # Keep consistency with $visit_LogicalExpression
+
         left_code = self.expr_to_str(node.left)
         right_code = self.expr_to_str(node.right)
-        self.output.append(f"{left_code} {node.operator} {right_code}")
+        self.output.append(f"({left_code} {node.operator} {right_code})")
 
 
     def visit_RaiseStatement(self, node: RaiseStatement):

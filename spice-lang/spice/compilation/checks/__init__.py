@@ -6,6 +6,7 @@ from spice.compilation.checks.method_overload_resolver import MethodOverloadReso
 from spice.compilation.checks.compile_time_check import CompileTimeCheck
 from spice.compilation.checks.symbol_table_builder import SymbolTableBuilder
 from spice.compilation.checks.type_checker import TypeChecker
+from spice.compilation.checks.generic_bound_checker import GenericBoundChecker
 from spice.compilation.checks.annotation_stage import AnnotationStage
 
 __all__ = [
@@ -15,6 +16,7 @@ __all__ = [
     "MethodOverloadResolver",
     "SymbolTableBuilder",
     "TypeChecker",
+    "GenericBoundChecker",
     "CompileTimeCheck",
     "AnnotationStage",
 ]

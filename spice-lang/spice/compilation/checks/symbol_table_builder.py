@@ -212,9 +212,12 @@ class SymbolTableBuilder(CompileTimeCheck):
         return None
 
     def _literal_to_type(self, literal: LiteralExpression) -> Optional[str]:
+        if literal.literal_type == "number":
+            text = str(literal.value)
+            return "float" if any(c in text for c in ".eE") else "int"
+
         mapping = {
             "string": "str",
-            "number": "int",
             "boolean": "bool",
         }
         return mapping.get(literal.literal_type)

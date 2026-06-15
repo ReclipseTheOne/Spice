@@ -11,10 +11,10 @@ from typing import TYPE_CHECKING
 from spice.printils import pipeline_log
 
 if TYPE_CHECKING:
-    from spice.cli import CLI_FLAGS
+    from spice.compilation.build_flags import BuildFlags
 
 
-def compile_to_executable(pyx_path: Path, flags: "CLI_FLAGS") -> Path:
+def compile_to_executable(pyx_path: Path, flags: "BuildFlags") -> Path:
     """
     Compile a .pyx file to a standalone executable using Cython --embed.
 
@@ -87,7 +87,7 @@ def compile_to_executable(pyx_path: Path, flags: "CLI_FLAGS") -> Path:
     return exe_path
 
 
-def _compile_c_to_exe(c_path: Path, exe_path: Path, flags: "CLI_FLAGS"):
+def _compile_c_to_exe(c_path: Path, exe_path: Path, flags: "BuildFlags"):
     """Compile C file to executable using distutils for proper compiler setup."""
     import distutils.ccompiler
     from distutils.errors import CompileError, LinkError

@@ -56,6 +56,36 @@ class TestClassKeywords:
         # Ensure abstract methods have @abstractmethod decorator
         assert_count(result, "@abstractmethod", 1, "abstractmethod decorators")
 
+    def test_body_less_signatures_without_semicolons(self):
+        """Body-less interface/abstract signatures terminate on a newline too.
+
+        The trailing ';' is optional, consistent with the rest of the grammar -
+        a newline (or the enclosing '}') ends a signature just as well.
+        """
+        source = """interface Drawable {
+    def draw() -> None
+    def area() -> float
+}
+
+abstract class Shape implements Drawable {
+    abstract def area() -> float
+
+    def draw() -> None {
+        pass
+    }
+}"""
+
+        log_test_start("test_body_less_signatures_without_semicolons", source)
+        result = self.transform_source(source)
+        log_test_result("test_body_less_signatures_without_semicolons", result)
+
+        assert_contains_all(result, [
+            "from abc import ABC, abstractmethod",
+            "def draw(self) -> None:",
+            "def area(self) -> float:",
+            "@abstractmethod",
+        ], "semicolon-less signatures")
+
     def test_final_class_basic(self):
         """Test basic final class."""
         source = """final class Dog {

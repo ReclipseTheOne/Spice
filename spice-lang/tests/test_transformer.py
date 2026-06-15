@@ -74,7 +74,7 @@ class TestTransformer:
         log_test_result("test_interface_with_inheritance", result)
 
         assert_contains_all(result, [
-            "class Colorable(Protocol, Drawable):",
+            "class Colorable(Drawable, Protocol):",
             "def set_color(self, color: str) -> None:"
         ], "interface inheritance transformation")
 
@@ -464,3 +464,52 @@ class MyClass {
             "@staticmethod",
             "def static_method() -> None:"  # No self for static
         ], "standalone function vs method transformation")
+
+    def test_future_annotations_emitted(self):
+        """Generated Python opts into lazy annotations so self/forward type refs work."""
+        result = self.transform_source("x: int = 1;")
+        presentIn(result, "from __future__ import annotations")
+
+    def test_binary_expression_preserves_grouping(self):
+        """Parentheses must survive: (a + b) ** c is not a + b ** c (regression)."""
+        source = """def f(a: int, b: int, c: int) -> int {
+    return (a + b) ** c;
+}"""
+        result = self.transform_source(source)
+        presentIn(result, "(a + b) ** c")
+
+    def test_switch_uses_subject_expression(self):
+        """switch must compare the actual subject, not a stringified AST node (regression)."""
+        source = """def f(code: int) -> str {
+    switch (code) {
+        case 200:
+            return "ok";
+        default:
+            return "no";
+    }
+}"""
+        result = self.transform_source(source)
+        assert_contains_all(result, [
+            "if code == 200:",
+            "else:",
+        ], "switch subject expression")
+        assert "IdentifierExpression" not in result, \
+            f"raw AST node leaked into output:\n{result}"
+
+    def test_elif_chain(self):
+        """`elif` is parsed and emitted as a Python elif (regression)."""
+        source = """def f(n: int) -> str {
+    if n < 0 {
+        return "neg";
+    } elif n == 0 {
+        return "zero";
+    } else {
+        return "pos";
+    }
+}"""
+        result = self.transform_source(source)
+        assert_contains_all(result, [
+            "if (n < 0):",
+            "elif (n == 0):",
+            "else:",
+        ], "elif chain")

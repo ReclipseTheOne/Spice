@@ -49,6 +49,7 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
+          submodules: recursive
 
       - name: Check for version in commit message
         id: check_version
